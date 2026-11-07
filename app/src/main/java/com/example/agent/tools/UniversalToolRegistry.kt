@@ -5,7 +5,12 @@ import com.example.build.BuildWorkflowManager
 import com.example.data.files.DiffUtil
 import com.example.data.model.FileChange
 import com.example.data.model.Project
+import com.example.hooks.engine.HookEngine
+import com.example.hooks.model.HookEvent
+import com.example.hooks.model.HookEventType
 import com.example.marketplace.service.SkillAndPluginManager
+import com.example.mcp.client.McpServerManager
+import com.example.mcp.registry.McpToolRegistry
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.flow.firstOrNull
@@ -54,12 +59,15 @@ data class ToolDefinition(
 
 /**
  * Universal Tool Registry & Tool Executor exposing real development capabilities,
- * validated schemas, structured execution, and plugin integrations.
+ * validated schemas, structured execution, Model Context Protocol (MCP), and Hooks automation.
  */
 class UniversalToolRegistry(
   val workspaceManager: WorkspaceManager,
   val buildManager: BuildWorkflowManager,
-  val skillManager: SkillAndPluginManager? = null
+  val skillManager: SkillAndPluginManager? = null,
+  val mcpServerManager: McpServerManager? = null,
+  val mcpToolRegistry: McpToolRegistry? = null,
+  val hookEngine: HookEngine? = null
 ) {
 
   private val registeredTools = mutableMapOf<String, ToolDefinition>()
@@ -307,6 +315,72 @@ class UniversalToolRegistry(
         }
       )
     )
+
+    // 16. mcp_call_tool
+    register(
+      ToolDefinition(
+        name = "mcp_call_tool",
+        category = "MCP and Extensions",
+        description = "Execute a tool exposed by a connected Model Context Protocol (MCP) server.",
+        parametersSchema = JSONObject().apply {
+          put("type", "object")
+          put("required", JSONArray().apply { put("tool_name") })
+          put("properties", JSONObject().apply {
+            put("tool_name", JSONObject().apply { put("type", "string") })
+            put("arguments", JSONObject().apply { put("type", "object") })
+          })
+        }
+      )
+    )
+
+    // 17. mcp_read_resource
+    register(
+      ToolDefinition(
+        name = "mcp_read_resource",
+        category = "MCP and Extensions",
+        description = "Read a resource content URI exposed by a connected MCP server.",
+        parametersSchema = JSONObject().apply {
+          put("type", "object")
+          put("required", JSONArray().apply { put("uri") })
+          put("properties", JSONObject().apply {
+            put("uri", JSONObject().apply { put("type", "string") })
+            put("server_id", JSONObject().apply { put("type", "string") })
+          })
+        }
+      )
+    )
+
+    // 18. mcp_manage_server
+    register(
+      ToolDefinition(
+        name = "mcp_manage_server",
+        category = "MCP and Extensions",
+        description = "List, inspect, connect, or disconnect configured MCP servers.",
+        parametersSchema = JSONObject().apply {
+          put("type", "object")
+          put("properties", JSONObject().apply {
+            put("action", JSONObject().apply { put("type", "string"); put("enum", JSONArray().apply { put("list"); put("connect"); put("disconnect") }) })
+            put("server", JSONObject().apply { put("type", "string") })
+          })
+        }
+      )
+    )
+
+    // 19. hooks_manage
+    register(
+      ToolDefinition(
+        name = "hooks_manage",
+        category = "Automation and Hooks",
+        description = "Inspect active automation rules or trigger automated code formatting on a file.",
+        parametersSchema = JSONObject().apply {
+          put("type", "object")
+          put("properties", JSONObject().apply {
+            put("action", JSONObject().apply { put("type", "string"); put("enum", JSONArray().apply { put("list"); put("format_file") }) })
+            put("relative_path", JSONObject().apply { put("type", "string") })
+          })
+        }
+      )
+    )
   }
 
   fun register(tool: ToolDefinition) {
@@ -332,6 +406,17 @@ class UniversalToolRegistry(
         builder.appendLine("  Arguments: ${tool.parametersSchema.toString()}")
       }
     }
+
+    // Append dynamically registered MCP tools
+    val mcpTools = mcpToolRegistry?.getAllTools() ?: emptyList()
+    if (mcpTools.isNotEmpty()) {
+      builder.appendLine("\n### Category: Dynamic Model Context Protocol (MCP) Tools")
+      mcpTools.forEach { tool ->
+        builder.appendLine("- **${tool.name}** [from MCP server '${tool.serverName}']: ${tool.description}")
+        builder.appendLine("  Arguments: ${tool.inputSchemaJson}")
+      }
+    }
+
     return builder.toString()
   }
 
@@ -340,9 +425,27 @@ class UniversalToolRegistry(
     args: JSONObject,
     project: Project,
     autoApproveWrites: Boolean,
-    autoApproveCommands: Boolean = false
+    autoApproveCommands: Boolean = false,
+    agentId: String = "main_agent",
+    taskId: String? = null
   ): AutonomousToolResult {
-    return try {
+    // 1. Pre-execution Hook Validation
+    if (hookEngine != null) {
+      val preEvent = HookEvent(
+        type = HookEventType.PRE_TOOL_EXECUTION,
+        project = project,
+        toolName = name,
+        toolArguments = args,
+        agentId = agentId,
+        taskId = taskId
+      )
+      val preCheck = hookEngine.dispatchEvent(preEvent)
+      if (!preCheck.isAllowed) {
+        return AutonomousToolResult.Error(name, "Execution prevented by pre-tool automation hook: ${preCheck.outputMessage}")
+      }
+    }
+
+    val result = try {
       when (name) {
         "inspect_workspace", "inspect_project" -> {
           val overviewText = workspaceManager.getProjectSummaryText(project)
@@ -551,18 +654,144 @@ class UniversalToolRegistry(
         "discover_mcp_tools" -> {
           val list = buildString {
             appendLine("MCP SERVERS & CAPABILITIES:")
-            appendLine("- Local Workspace Tools: 15 active")
+            if (mcpServerManager != null) {
+              val servers = mcpServerManager.serversFlow.value
+              appendLine("- Configured MCP Servers: ${servers.size}")
+              servers.forEach { s ->
+                val toolCount = mcpToolRegistry?.getAllTools()?.count { it.serverId == s.id } ?: 0
+                appendLine("  * [${s.status.name}] ${s.name} (${s.url}) - Transport: ${s.transportType.displayName}, Tools: $toolCount")
+              }
+            }
+            val tools = mcpToolRegistry?.getAllTools() ?: emptyList()
+            if (tools.isNotEmpty()) {
+              appendLine("\nACTIVE MCP TOOLS (${tools.size}):")
+              tools.forEach { t ->
+                appendLine("  * [${t.serverName}] ${t.name}: ${t.description.take(80)}")
+              }
+            } else {
+              appendLine("- No external MCP tools currently connected.")
+            }
             if (skillManager != null) {
               val installed = skillManager.installedExtensionsFlow.firstOrNull() ?: emptyList()
-              appendLine("- Installed Skill Extensions: ${installed.size}")
+              appendLine("\nInstalled Skill Extensions: ${installed.size}")
               installed.forEach { ext ->
                 appendLine("  * [${ext.id}] ${ext.name} (v${ext.version})")
               }
-            } else {
-              appendLine("- Plugin Runtime: Available")
             }
           }
           AutonomousToolResult.Success(name, list)
+        }
+
+        "mcp_call_tool" -> {
+          val toolName = args.optString("tool_name").ifBlank { args.optString("name") }
+          val toolArgs = args.optJSONObject("arguments") ?: args.optJSONObject("params") ?: JSONObject()
+          if (toolName.isBlank()) {
+            AutonomousToolResult.Error(name, "tool_name parameter is required.")
+          } else if (mcpToolRegistry != null) {
+            val res = mcpToolRegistry.executeTool(toolName, toolArgs, agentId, taskId)
+            if (res.isSuccess) {
+              AutonomousToolResult.Success(name, "MCP Tool '$toolName' output:\n${res.output}")
+            } else {
+              AutonomousToolResult.Error(name, "MCP Tool '$toolName' execution failed: ${res.output}")
+            }
+          } else {
+            AutonomousToolResult.Error(name, "MCP tool registry is not initialized.")
+          }
+        }
+
+        "mcp_read_resource" -> {
+          val uri = args.optString("uri")
+          val serverId = args.optString("server_id")
+          if (uri.isBlank()) {
+            AutonomousToolResult.Error(name, "uri parameter is required.")
+          } else if (mcpServerManager != null) {
+            val client = if (serverId.isNotBlank()) {
+              mcpServerManager.connectionManager.getClient(serverId)
+            } else {
+              mcpServerManager.connectionManager.getAllConnectedClients().firstOrNull()
+            }
+            if (client != null) {
+              val content = client.readResource(uri)
+              AutonomousToolResult.Success(name, "Resource content ($uri):\n$content")
+            } else {
+              AutonomousToolResult.Error(name, "No connected MCP server found to read resource '$uri'.")
+            }
+          } else {
+            AutonomousToolResult.Error(name, "MCP connection manager is not available.")
+          }
+        }
+
+        "mcp_manage_server" -> {
+          val action = args.optString("action", "list").lowercase()
+          if (mcpServerManager == null) {
+            AutonomousToolResult.Error(name, "MCP server manager is not available.")
+          } else {
+            when (action) {
+              "list" -> {
+                val servers = mcpServerManager.serversFlow.value
+                val text = if (servers.isEmpty()) {
+                  "No MCP servers configured."
+                } else {
+                  servers.joinToString("\n") { s ->
+                    "• [${s.status.name}] ${s.name} (${s.url}) - Transport: ${s.transportType.displayName}, Enabled: ${s.isEnabled}, Approved: ${s.isApprovedByUser}"
+                  }
+                }
+                AutonomousToolResult.Success(name, text)
+              }
+              "connect" -> {
+                val serverNameOrId = args.optString("server")
+                val server = mcpServerManager.serversFlow.value.firstOrNull { it.id == serverNameOrId || it.name.equals(serverNameOrId, ignoreCase = true) }
+                if (server != null) {
+                  val ok = mcpServerManager.connectServer(server)
+                  AutonomousToolResult.Success(name, if (ok) "Connected to ${server.name} and discovered tools." else "Failed to connect to ${server.name}.")
+                } else {
+                  AutonomousToolResult.Error(name, "Server '$serverNameOrId' not found.")
+                }
+              }
+              "disconnect" -> {
+                val serverNameOrId = args.optString("server")
+                val server = mcpServerManager.serversFlow.value.firstOrNull { it.id == serverNameOrId || it.name.equals(serverNameOrId, ignoreCase = true) }
+                if (server != null) {
+                  mcpServerManager.disconnectServer(server.id)
+                  AutonomousToolResult.Success(name, "Disconnected from ${server.name}.")
+                } else {
+                  AutonomousToolResult.Error(name, "Server '$serverNameOrId' not found.")
+                }
+              }
+              else -> AutonomousToolResult.Error(name, "Unsupported action '$action'. Use list, connect, or disconnect.")
+            }
+          }
+        }
+
+        "hooks_manage" -> {
+          val action = args.optString("action", "list").lowercase()
+          if (hookEngine == null) {
+            AutonomousToolResult.Error(name, "Hook Engine is not initialized.")
+          } else {
+            when (action) {
+              "list" -> {
+                val rules = hookEngine.rulesFlow.value
+                val text = if (rules.isEmpty()) {
+                  "No automation hook rules currently registered."
+                } else {
+                  rules.joinToString("\n") { r ->
+                    "• [${if (r.isEnabled) "ACTIVE" else "DISABLED"}] ${r.name}: Event=${r.eventType.displayName}, Pattern=${r.filePattern}, Action=${r.actionType.displayName}"
+                  }
+                }
+                AutonomousToolResult.Success(name, text)
+              }
+              "format_file" -> {
+                val path = args.optString("relative_path")
+                if (path.isBlank()) {
+                  AutonomousToolResult.Error(name, "relative_path parameter is required.")
+                } else {
+                  val res = hookEngine.codeFormatter.formatFile(project, path)
+                  AutonomousToolResult.Success(name, res.message)
+                }
+              }
+              else -> AutonomousToolResult.Error(name, "Unsupported hook action '$action'. Use list or format_file.")
+            }
+          }
         }
 
         "run_plugin_capability" -> {
@@ -582,12 +811,55 @@ class UniversalToolRegistry(
         }
 
         else -> {
-          AutonomousToolResult.Error(name, "Unrecognized tool: $name")
+          if (mcpToolRegistry != null && mcpToolRegistry.findToolByName(name) != null) {
+            val res = mcpToolRegistry.executeTool(name, args, agentId, taskId)
+            if (res.isSuccess) {
+              AutonomousToolResult.Success(name, "MCP Tool '$name' result:\n${res.output}")
+            } else {
+              AutonomousToolResult.Error(name, "MCP Tool '$name' failed: ${res.output}")
+            }
+          } else {
+            AutonomousToolResult.Error(name, "Unrecognized tool: $name")
+          }
         }
       }
     } catch (e: Exception) {
       AutonomousToolResult.Error(name, "Tool execution exception: ${e.message}", e.message)
     }
+
+    // 2. Post-tool execution and file modification hooks
+    if (result is AutonomousToolResult.Success) {
+      if (name in listOf("write_file", "replace_string_in_file", "create_file")) {
+        val relPath = args.optString("relative_path")
+        if (relPath.isNotBlank()) {
+          hookEngine?.dispatchEvent(
+            HookEvent(
+              type = HookEventType.FILE_MODIFIED,
+              project = project,
+              filePath = relPath,
+              toolName = name,
+              toolOutput = result.output,
+              agentId = agentId,
+              taskId = taskId
+            )
+          )
+        }
+      }
+      hookEngine?.dispatchEvent(
+        HookEvent(
+          type = HookEventType.POST_TOOL_EXECUTION,
+          project = project,
+          toolName = name,
+          toolArguments = args,
+          toolOutput = result.output,
+          toolSuccess = true,
+          agentId = agentId,
+          taskId = taskId
+        )
+      )
+    }
+
+    return result
   }
 
   /**

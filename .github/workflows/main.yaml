@@ -7,6 +7,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Compile Android App
@@ -30,10 +33,45 @@ jobs:
 
       - name: Prepare Keystore and Environment
         run: |
-          if [ -f debug.keystore.base64 ] && [ ! -f debug.keystore ]; then
+          # 1. Attempt to decode debug.keystore.base64 if present
+          if [ -s debug.keystore.base64 ] && [ ! -s debug.keystore ]; then
             echo "Decoding debug keystore from base64..."
-            base64 -d debug.keystore.base64 > debug.keystore
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
+
+          # 2. Verify keystore validity; if missing or invalid, generate with keytool
+          KEYSTORE_VALID=false
+          if [ -s debug.keystore ]; then
+            if keytool -list -keystore debug.keystore -storepass android -alias androiddebugkey >/dev/null 2>&1; then
+              KEYSTORE_VALID=true
+              echo "Valid debug.keystore found."
+            fi
+          fi
+
+          if [ "$KEYSTORE_VALID" = false ]; then
+            echo "debug.keystore missing or invalid, generating fresh Android debug keystore with keytool..."
+            rm -f debug.keystore
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # 3. Replicate debug.keystore in app directory and ~/.android
+          cp debug.keystore app/debug.keystore 2>/dev/null || true
+          mkdir -p ~/.android
+          cp debug.keystore ~/.android/debug.keystore 2>/dev/null || true
+
+          # 4. Print keystore info for verification in logs
+          echo "Verifying debug.keystore:"
+          keytool -list -keystore debug.keystore -storepass android
+
+          # 5. Prepare .env for secrets plugin
           if [ ! -f .env ] && [ -f .env.example ]; then
             echo "Creating .env from .env.example..."
             cp .env.example .env
@@ -50,3 +88,55 @@ jobs:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: warn
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Compiled APK
+        uses: actions/download-artifact@v4
+        with:
+          name: app-debug
+          path: ./apk-output
+
+      - name: Prepare Release Asset
+        run: |
+          mkdir -p ./release-assets
+          if [ -f ./apk-output/app-debug.apk ]; then
+            cp ./apk-output/app-debug.apk ./release-assets/ClaudeCode-v1.0.${{ github.run_number }}.apk
+            cp ./apk-output/app-debug.apk ./release-assets/app-debug.apk
+          fi
+          ls -la ./release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Claude Code Android v1.0.${{ github.run_number }}
+          body: |
+            ### Claude Code for Android (Build #${{ github.run_number }})
+            
+            Automated production build compiled via GitHub Actions.
+            
+            - **Commit**: `${{ github.sha }}`
+            - **Branch**: `${{ github.ref_name }}`
+            - **Build Number**: `${{ github.run_number }}`
+            
+            #### Assets
+            - `ClaudeCode-v1.0.${{ github.run_number }}.apk`: Direct installation package for Android.
+            - `app-debug.apk`: Standard debug build package.
+          files: |
+            ./release-assets/ClaudeCode-v1.0.${{ github.run_number }}.apk
+            ./release-assets/app-debug.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -12,9 +12,18 @@ import com.example.marketplace.persistence.InstalledExtensionEntity
 import com.example.marketplace.persistence.MarketplaceDao
 import com.example.marketplace.persistence.MarketplaceEntity
 
+import com.example.mcp.persistence.McpDao
+import com.example.mcp.persistence.McpLogEntity
+import com.example.mcp.persistence.McpServerEntity
+import com.example.mcp.persistence.McpToolEntity
+import com.example.hooks.persistence.HookDao
+import com.example.hooks.persistence.HookLogEntity
+import com.example.hooks.persistence.HookRuleEntity
+
 /**
  * Main Room Database for Claude Code, managing persistent chat messages,
- * project memories, and installed universal marketplace plugins/skills.
+ * project memories, installed marketplace plugins, MCP server configurations,
+ * and automated lifecycle hooks.
  */
 @Database(
   entities = [
@@ -22,9 +31,14 @@ import com.example.marketplace.persistence.MarketplaceEntity
     ProjectMemoryEntity::class,
     MarketplaceEntity::class,
     InstalledExtensionEntity::class,
-    ExtensionExecutionRecordEntity::class
+    ExtensionExecutionRecordEntity::class,
+    McpServerEntity::class,
+    McpToolEntity::class,
+    McpLogEntity::class,
+    HookRuleEntity::class,
+    HookLogEntity::class
   ],
-  version = 3,
+  version = 4,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,6 +48,8 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun marketplaceDao(): MarketplaceDao
   abstract fun installedExtensionDao(): InstalledExtensionDao
   abstract fun extensionExecutionDao(): ExtensionExecutionDao
+  abstract fun mcpDao(): McpDao
+  abstract fun hookDao(): HookDao
 
   companion object {
     @Volatile

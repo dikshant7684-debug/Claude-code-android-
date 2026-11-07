@@ -20,6 +20,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
+import com.example.hooks.engine.HookEngine
+import com.example.mcp.client.McpServerManager
+import com.example.mcp.registry.McpToolRegistry
+
 /**
  * Autonomous Coding Agent Engine integrating the TaskPlanner, ExecutionLoop,
  * WorkspaceManager, UniversalToolRegistry, and AutonomousTaskManager.
@@ -33,7 +37,10 @@ class CodingAgentEngine(
   val aiClient: AiProviderClient,
   val fileManager: ProjectFileManager,
   val memoryRepository: ProjectMemoryRepository? = null,
-  val skillManager: SkillAndPluginManager? = null
+  val skillManager: SkillAndPluginManager? = null,
+  val mcpServerManager: McpServerManager? = null,
+  val mcpToolRegistry: McpToolRegistry? = null,
+  val hookEngine: HookEngine? = null
 ) {
 
   val workspaceManager: WorkspaceManager = WorkspaceManager(
@@ -44,7 +51,10 @@ class CodingAgentEngine(
   val universalToolRegistry: UniversalToolRegistry = UniversalToolRegistry(
     workspaceManager = workspaceManager,
     buildManager = toolRegistry.buildManager,
-    skillManager = skillManager
+    skillManager = skillManager,
+    mcpServerManager = mcpServerManager,
+    mcpToolRegistry = mcpToolRegistry,
+    hookEngine = hookEngine
   )
 
   val taskPlanner: TaskPlanner = TaskPlanner()

@@ -5,7 +5,12 @@ import com.example.data.files.DiffUtil
 import com.example.data.files.ProjectFileManager
 import com.example.data.model.FileChange
 import com.example.data.model.Project
+import com.example.hooks.engine.HookEngine
+import com.example.hooks.model.HookEvent
+import com.example.hooks.model.HookEventType
 import com.example.marketplace.service.SkillAndPluginManager
+import com.example.mcp.client.McpServerManager
+import com.example.mcp.registry.McpToolRegistry
 import org.json.JSONObject
 import java.io.File
 
@@ -23,7 +28,10 @@ sealed class ToolResult {
 class AgentToolRegistry(
   val fileManager: ProjectFileManager,
   val buildManager: BuildWorkflowManager,
-  val skillManager: SkillAndPluginManager? = null
+  val skillManager: SkillAndPluginManager? = null,
+  val mcpServerManager: McpServerManager? = null,
+  val mcpToolRegistry: McpToolRegistry? = null,
+  val hookEngine: HookEngine? = null
 ) {
 
   fun getSystemPrompt(project: Project): String {
@@ -234,6 +242,95 @@ GUIDELINES:
           ToolResult.Success("Verification check result: ${result.message}\nIssues found: ${result.diagnostics.size}")
         }
 
+        "mcp_call_tool" -> {
+          val toolName = args.optString("tool_name").ifBlank { args.optString("name") }
+          val toolArgs = args.optJSONObject("arguments") ?: args.optJSONObject("params") ?: JSONObject()
+          if (toolName.isBlank()) {
+            ToolResult.Error("tool_name parameter is required.")
+          } else if (mcpToolRegistry != null) {
+            val res = mcpToolRegistry.executeTool(toolName, toolArgs)
+            if (res.isSuccess) {
+              ToolResult.Success(res.output)
+            } else {
+              ToolResult.Error(res.output)
+            }
+          } else {
+            ToolResult.Error("MCP tool registry is not initialized.")
+          }
+        }
+
+        "mcp_read_resource" -> {
+          val uri = args.optString("uri")
+          val serverId = args.optString("server_id")
+          if (uri.isBlank()) {
+            ToolResult.Error("uri parameter is required.")
+          } else if (mcpServerManager != null) {
+            val client = if (serverId.isNotBlank()) {
+              mcpServerManager.connectionManager.getClient(serverId)
+            } else {
+              mcpServerManager.connectionManager.getAllConnectedClients().firstOrNull()
+            }
+            if (client != null) {
+              ToolResult.Success("Resource content ($uri):\n${client.readResource(uri)}")
+            } else {
+              ToolResult.Error("No connected MCP server available to read resource $uri.")
+            }
+          } else {
+            ToolResult.Error("MCP server manager is not available.")
+          }
+        }
+
+        "mcp_manage_server" -> {
+          val action = args.optString("action", "list").lowercase()
+          if (mcpServerManager == null) {
+            ToolResult.Error("MCP server manager is not available.")
+          } else {
+            when (action) {
+              "list" -> {
+                val servers = mcpServerManager.serversFlow.value
+                val text = if (servers.isEmpty()) "No MCP servers configured." else servers.joinToString("\n") {
+                  "• [${it.status.name}] ${it.name} (${it.url}) - Transport: ${it.transportType.displayName}"
+                }
+                ToolResult.Success(text)
+              }
+              "connect" -> {
+                val serverName = args.optString("server")
+                val server = mcpServerManager.serversFlow.value.firstOrNull { it.name.equals(serverName, ignoreCase = true) || it.id == serverName }
+                if (server != null) {
+                  val ok = mcpServerManager.connectServer(server)
+                  ToolResult.Success(if (ok) "Connected to ${server.name}." else "Failed to connect to ${server.name}.")
+                } else {
+                  ToolResult.Error("Server '$serverName' not found.")
+                }
+              }
+              else -> ToolResult.Error("Unsupported action: $action")
+            }
+          }
+        }
+
+        "hooks_manage" -> {
+          val action = args.optString("action", "list").lowercase()
+          if (hookEngine == null) {
+            ToolResult.Error("Hook Engine is not initialized.")
+          } else {
+            when (action) {
+              "list" -> {
+                val rules = hookEngine.rulesFlow.value
+                val text = if (rules.isEmpty()) "No automation rules." else rules.joinToString("\n") {
+                  "• [${if (it.isEnabled) "ACTIVE" else "OFF"}] ${it.name}: Event=${it.eventType.displayName}, Action=${it.actionType.displayName}"
+                }
+                ToolResult.Success(text)
+              }
+              "format_file" -> {
+                val path = args.optString("relative_path")
+                val res = hookEngine.codeFormatter.formatFile(project, path)
+                ToolResult.Success(res.message)
+              }
+              else -> ToolResult.Error("Unsupported hook action: $action")
+            }
+          }
+        }
+
         "run_plugin_capability" -> {
           val extId = args.optString("extension_id")
           val capName = args.optString("capability_name")
@@ -246,7 +343,14 @@ GUIDELINES:
         }
 
         else -> {
-          if (skillManager != null) {
+          if (mcpToolRegistry != null && mcpToolRegistry.findToolByName(name) != null) {
+            val res = mcpToolRegistry.executeTool(name, args)
+            if (res.isSuccess) {
+              ToolResult.Success("MCP Tool '$name' output:\n${res.output}")
+            } else {
+              ToolResult.Error("MCP Tool '$name' failed: ${res.output}")
+            }
+          } else if (skillManager != null) {
             skillManager.executePluginCapability(name, name, args, project)
           } else {
             ToolResult.Error("Unknown tool: $name")

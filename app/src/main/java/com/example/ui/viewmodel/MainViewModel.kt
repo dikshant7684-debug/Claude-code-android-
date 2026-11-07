@@ -46,6 +46,21 @@ import com.example.motion.model.MotionOperationResult
 import com.example.motion.model.MotionProject
 import com.example.motion.model.MotionStyle
 
+import com.example.mcp.client.McpConnectionManager
+import com.example.mcp.client.McpServerManager
+import com.example.mcp.logging.McpExecutionLogger
+import com.example.mcp.logging.McpLogEntry
+import com.example.mcp.marketplace.McpMarketplaceManager
+import com.example.mcp.model.McpServerConfig
+import com.example.mcp.model.McpToolDefinition
+import com.example.mcp.registry.McpPermissionManager
+import com.example.mcp.registry.McpToolRegistry
+import com.example.mcp.security.McpAuthManager
+import com.example.hooks.engine.HookEngine
+import com.example.hooks.executors.AutomatedTestingService
+import com.example.hooks.executors.CodeFormatterService
+import com.example.hooks.model.HookRule
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
   val fileManager = ProjectFileManager(application)
@@ -64,8 +79,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fileManager = fileManager
   )
   val buildManager = BuildWorkflowManager(fileManager)
-  val toolRegistry = AgentToolRegistry(fileManager, buildManager, skillPluginManager)
-  val agentEngine = CodingAgentEngine(viewModelScope, toolRegistry, aiClient, fileManager, memoryRepository, skillPluginManager)
+
+  // MCP & Hooks Integration
+  val mcpDao = chatDatabase.mcpDao()
+  val hookDao = chatDatabase.hookDao()
+  val mcpAuthManager = McpAuthManager(application)
+  val mcpConnectionManager = McpConnectionManager(application, mcpAuthManager)
+  val mcpPermissionManager = McpPermissionManager()
+  val mcpExecutionLogger = McpExecutionLogger(mcpAuthManager)
+  val mcpToolRegistry = McpToolRegistry(mcpConnectionManager, mcpPermissionManager, mcpExecutionLogger)
+  val mcpServerManager = McpServerManager(
+    context = application,
+    mcpDao = mcpDao,
+    authManager = mcpAuthManager,
+    connectionManager = mcpConnectionManager,
+    toolRegistry = mcpToolRegistry,
+    logger = mcpExecutionLogger
+  )
+  val mcpMarketplaceManager = McpMarketplaceManager()
+
+  val codeFormatterService = CodeFormatterService(fileManager)
+  val automatedTestingService = AutomatedTestingService(buildManager)
+  val hookEngine = HookEngine(
+    context = application,
+    hookDao = hookDao,
+    codeFormatter = codeFormatterService,
+    testingService = automatedTestingService
+  )
+
+  val toolRegistry = AgentToolRegistry(
+    fileManager = fileManager,
+    buildManager = buildManager,
+    skillManager = skillPluginManager,
+    mcpServerManager = mcpServerManager,
+    mcpToolRegistry = mcpToolRegistry,
+    hookEngine = hookEngine
+  )
+  val agentEngine = CodingAgentEngine(
+    scope = viewModelScope,
+    toolRegistry = toolRegistry,
+    aiClient = aiClient,
+    fileManager = fileManager,
+    memoryRepository = memoryRepository,
+    skillManager = skillPluginManager,
+    mcpServerManager = mcpServerManager,
+    mcpToolRegistry = mcpToolRegistry,
+    hookEngine = hookEngine
+  )
+
+  val mcpServers: StateFlow<List<McpServerConfig>> = mcpServerManager.serversFlow
+  val mcpTools: StateFlow<List<McpToolDefinition>> = mcpToolRegistry.toolsFlow
+  val mcpLogs: StateFlow<List<McpLogEntry>> = mcpExecutionLogger.logsFlow
+  val hookRules: StateFlow<List<HookRule>> = hookEngine.rulesFlow
 
   val motionRepository = MotionProjectRepository(application, fileManager)
   val motionGenerator = MotionAiGenerator(aiClient)
@@ -945,6 +1010,81 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   fun checkForExtensionUpdates() {
     viewModelScope.launch {
       skillPluginManager.checkForUpdates()
+    }
+  }
+
+  // --- MCP (Model Context Protocol) Actions ---
+
+  fun connectMcpServer(config: McpServerConfig, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+    viewModelScope.launch {
+      val ok = mcpServerManager.connectServer(config)
+      if (ok) {
+        onResult(true, "Connected to ${config.name}")
+      } else {
+        onResult(false, "Failed to connect to ${config.name}")
+      }
+    }
+  }
+
+  fun disconnectMcpServer(serverId: String) {
+    mcpServerManager.disconnectServer(serverId)
+  }
+
+  fun addOrUpdateMcpServer(config: McpServerConfig) {
+    viewModelScope.launch {
+      mcpServerManager.addOrUpdateServer(config)
+    }
+  }
+
+  fun deleteMcpServer(serverId: String) {
+    viewModelScope.launch {
+      mcpServerManager.deleteServer(serverId)
+    }
+  }
+
+  fun approveMcpServer(serverId: String, approved: Boolean) {
+    viewModelScope.launch {
+      mcpServerManager.setServerApproved(serverId, approved)
+    }
+  }
+
+  fun executeMcpTool(toolName: String, args: org.json.JSONObject, onResult: (Boolean, String) -> Unit) {
+    viewModelScope.launch {
+      val res = mcpToolRegistry.executeTool(toolName, args)
+      onResult(res.isSuccess, res.output)
+    }
+  }
+
+  fun importMcpServersJson(json: String): Int {
+    val servers = mcpMarketplaceManager.parseMcpConfigJson(json)
+    viewModelScope.launch {
+      servers.forEach { s -> mcpServerManager.addOrUpdateServer(s) }
+    }
+    return servers.size
+  }
+
+  fun exportMcpServersJson(): String {
+    return mcpMarketplaceManager.exportMcpConfigJson(mcpServers.value)
+  }
+
+  // --- Hooks & Automation Actions ---
+
+  fun toggleHookRule(ruleId: String, isEnabled: Boolean) {
+    viewModelScope.launch {
+      hookEngine.toggleRule(ruleId, isEnabled)
+    }
+  }
+
+  fun deleteHookRule(ruleId: String) {
+    viewModelScope.launch {
+      hookEngine.deleteRule(ruleId)
+    }
+  }
+
+  fun formatFileWithHook(project: Project, relativePath: String, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+    viewModelScope.launch {
+      val res = hookEngine.codeFormatter.formatFile(project, relativePath)
+      onResult(res.isSuccess, res.message)
     }
   }
 }
