@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Claude Code"
+rootProject.name = "NEU_CODE"
 
 include(":app")

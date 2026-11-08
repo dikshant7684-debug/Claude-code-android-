@@ -64,7 +64,7 @@ fun ClaudeComposer(
   onModelSelected: (String) -> Unit,
   onAttachContext: () -> Unit,
   modifier: Modifier = Modifier,
-  placeholderText: String = "What would you like to build today?",
+  placeholderText: String = "State your directive or code prompt...",
   isRunning: Boolean = false,
   onCancel: (() -> Unit)? = null
 ) {
@@ -225,7 +225,7 @@ fun ClaudeComposer(
               shape = CircleShape,
               color = ClaudeTerracotta,
               modifier = Modifier
-                .size(34.dp)
+                .size(30.dp)
                 .clickable { onCancel?.invoke() }
                 .testTag("composer_cancel_btn")
             ) {
@@ -234,7 +234,7 @@ fun ClaudeComposer(
                   Icons.Default.Stop,
                   contentDescription = "Stop generation",
                   tint = Color.White,
-                  modifier = Modifier.size(16.dp)
+                  modifier = Modifier.size(14.dp)
                 )
               }
             }
@@ -244,7 +244,7 @@ fun ClaudeComposer(
               shape = CircleShape,
               color = if (canSend) ClaudeTerracotta else ClaudeSurfaceSubtle,
               modifier = Modifier
-                .size(34.dp)
+                .size(30.dp)
                 .clickable(enabled = canSend) {
                   onSend(text.trim())
                 }
@@ -255,7 +255,7 @@ fun ClaudeComposer(
                   Icons.Default.ArrowUpward,
                   contentDescription = "Send message",
                   tint = if (canSend) Color.White else ClaudeTextMuted,
-                  modifier = Modifier.size(18.dp)
+                  modifier = Modifier.size(15.dp)
                 )
               }
             }

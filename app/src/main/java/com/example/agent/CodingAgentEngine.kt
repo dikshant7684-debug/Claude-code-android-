@@ -86,8 +86,8 @@ class CodingAgentEngine(
   /**
    * Submits and begins autonomous execution of a user coding request.
    */
-  fun startTask(userPrompt: String, project: Project, config: ProviderConfig) {
-    taskManager.submitTask(userPrompt, project, config)
+  fun startTask(userPrompt: String, project: Project, config: ProviderConfig): AgentTask {
+    return taskManager.submitTask(userPrompt, project, config)
   }
 
   /**

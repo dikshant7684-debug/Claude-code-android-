@@ -28,12 +28,51 @@ data class GeneralPreferences(
   val editorToolbarEnabled: Boolean = true
 )
 
+data class UserAccountInfo(
+  val email: String = "dikshant7684@gmail.com",
+  val subscriptionPlan: String = "Free",
+  val displayName: String = "Dikshant"
+)
+
+data class AppCapabilities(
+  val codeGeneration: Boolean = true,
+  val fileEditing: Boolean = true,
+  val claudeMotion: Boolean = true,
+  val diagnostics: Boolean = true,
+  val toolCalling: Boolean = true,
+  val automations: Boolean = true
+) {
+  fun enabledCount(): Int {
+    var count = 0
+    if (codeGeneration) count++
+    if (fileEditing) count++
+    if (claudeMotion) count++
+    if (diagnostics) count++
+    if (toolCalling) count++
+    if (automations) count++
+    return count
+  }
+}
+
 data class ToolPermissionPreferences(
   val readFileAllowed: Boolean = true,
   val writeFileRequireReview: Boolean = true,
   val applyPatchRequireReview: Boolean = true,
-  val inspectWorkspaceAllowed: Boolean = true
-)
+  val inspectWorkspaceAllowed: Boolean = true,
+  val terminalExecutionAllowed: Boolean = true,
+  val networkAccessAllowed: Boolean = true
+) {
+  fun grantedCount(): Int {
+    var count = 0
+    if (readFileAllowed) count++
+    if (inspectWorkspaceAllowed) count++
+    if (terminalExecutionAllowed) count++
+    if (networkAccessAllowed) count++
+    if (!writeFileRequireReview) count++
+    if (!applyPatchRequireReview) count++
+    return count
+  }
+}
 
 class PreferencesManager(private val context: Context) {
 
@@ -70,6 +109,25 @@ class PreferencesManager(private val context: Context) {
     val TOOL_WRITE_FILE_REVIEW = booleanPreferencesKey("tool_write_file_review")
     val TOOL_APPLY_PATCH_REVIEW = booleanPreferencesKey("tool_apply_patch_review")
     val TOOL_INSPECT_WORKSPACE = booleanPreferencesKey("tool_inspect_workspace")
+    val TOOL_TERMINAL = booleanPreferencesKey("tool_terminal")
+    val TOOL_NETWORK = booleanPreferencesKey("tool_network")
+
+    // Account & Subscription
+    val USER_EMAIL = stringPreferencesKey("user_email")
+    val USER_PLAN = stringPreferencesKey("user_subscription_plan")
+    val USER_DISPLAY_NAME = stringPreferencesKey("user_display_name")
+
+    // App Preferences
+    val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+    val HAPTIC_ENABLED = booleanPreferencesKey("haptic_enabled")
+
+    // Capabilities
+    val CAP_CODE_GEN = booleanPreferencesKey("cap_code_gen")
+    val CAP_FILE_EDIT = booleanPreferencesKey("cap_file_edit")
+    val CAP_MOTION = booleanPreferencesKey("cap_motion")
+    val CAP_DIAGNOSTICS = booleanPreferencesKey("cap_diagnostics")
+    val CAP_TOOL_CALLING = booleanPreferencesKey("cap_tool_calling")
+    val CAP_AUTOMATIONS = booleanPreferencesKey("cap_automations")
 
     // Live Models & Storage flags
     val FETCHED_MODELS = stringPreferencesKey("fetched_models")
@@ -129,8 +187,37 @@ class PreferencesManager(private val context: Context) {
       readFileAllowed = prefs[Keys.TOOL_READ_FILE] ?: true,
       writeFileRequireReview = prefs[Keys.TOOL_WRITE_FILE_REVIEW] ?: true,
       applyPatchRequireReview = prefs[Keys.TOOL_APPLY_PATCH_REVIEW] ?: true,
-      inspectWorkspaceAllowed = prefs[Keys.TOOL_INSPECT_WORKSPACE] ?: true
+      inspectWorkspaceAllowed = prefs[Keys.TOOL_INSPECT_WORKSPACE] ?: true,
+      terminalExecutionAllowed = prefs[Keys.TOOL_TERMINAL] ?: true,
+      networkAccessAllowed = prefs[Keys.TOOL_NETWORK] ?: true
     )
+  }
+
+  val userAccountFlow: Flow<UserAccountInfo> = context.dataStore.data.map { prefs ->
+    UserAccountInfo(
+      email = prefs[Keys.USER_EMAIL] ?: "dikshant7684@gmail.com",
+      subscriptionPlan = prefs[Keys.USER_PLAN] ?: "Free",
+      displayName = prefs[Keys.USER_DISPLAY_NAME] ?: "Dikshant"
+    )
+  }
+
+  val appCapabilitiesFlow: Flow<AppCapabilities> = context.dataStore.data.map { prefs ->
+    AppCapabilities(
+      codeGeneration = prefs[Keys.CAP_CODE_GEN] ?: true,
+      fileEditing = prefs[Keys.CAP_FILE_EDIT] ?: true,
+      claudeMotion = prefs[Keys.CAP_MOTION] ?: true,
+      diagnostics = prefs[Keys.CAP_DIAGNOSTICS] ?: true,
+      toolCalling = prefs[Keys.CAP_TOOL_CALLING] ?: true,
+      automations = prefs[Keys.CAP_AUTOMATIONS] ?: true
+    )
+  }
+
+  val notificationsEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    prefs[Keys.NOTIFICATIONS_ENABLED] ?: true
+  }
+
+  val hapticEnabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    prefs[Keys.HAPTIC_ENABLED] ?: true
   }
 
   suspend fun saveProviderConfig(config: ProviderConfig) {
@@ -188,6 +275,39 @@ class PreferencesManager(private val context: Context) {
       prefs[Keys.TOOL_WRITE_FILE_REVIEW] = prefsData.writeFileRequireReview
       prefs[Keys.TOOL_APPLY_PATCH_REVIEW] = prefsData.applyPatchRequireReview
       prefs[Keys.TOOL_INSPECT_WORKSPACE] = prefsData.inspectWorkspaceAllowed
+      prefs[Keys.TOOL_TERMINAL] = prefsData.terminalExecutionAllowed
+      prefs[Keys.TOOL_NETWORK] = prefsData.networkAccessAllowed
+    }
+  }
+
+  suspend fun saveUserAccount(account: UserAccountInfo) {
+    context.dataStore.edit { prefs ->
+      prefs[Keys.USER_EMAIL] = account.email
+      prefs[Keys.USER_PLAN] = account.subscriptionPlan
+      prefs[Keys.USER_DISPLAY_NAME] = account.displayName
+    }
+  }
+
+  suspend fun saveAppCapabilities(capabilities: AppCapabilities) {
+    context.dataStore.edit { prefs ->
+      prefs[Keys.CAP_CODE_GEN] = capabilities.codeGeneration
+      prefs[Keys.CAP_FILE_EDIT] = capabilities.fileEditing
+      prefs[Keys.CAP_MOTION] = capabilities.claudeMotion
+      prefs[Keys.CAP_DIAGNOSTICS] = capabilities.diagnostics
+      prefs[Keys.CAP_TOOL_CALLING] = capabilities.toolCalling
+      prefs[Keys.CAP_AUTOMATIONS] = capabilities.automations
+    }
+  }
+
+  suspend fun saveNotificationsEnabled(enabled: Boolean) {
+    context.dataStore.edit { prefs ->
+      prefs[Keys.NOTIFICATIONS_ENABLED] = enabled
+    }
+  }
+
+  suspend fun saveHapticEnabled(enabled: Boolean) {
+    context.dataStore.edit { prefs ->
+      prefs[Keys.HAPTIC_ENABLED] = enabled
     }
   }
 

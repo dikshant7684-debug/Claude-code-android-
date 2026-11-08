@@ -2,73 +2,143 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary Orange / Terracotta Accents (Claude aesthetic)
-val DroidOrange = Color(0xFFD95B26)          // Warm Claude terracotta / orange
-val DroidOrangeDark = Color(0xFFBF360C)      // Deep burnt terracotta
-val DroidOrangeLight = Color(0xFFFFE0B2)     // Soft light tint for indicator
-val DroidOrangeContainer = Color(0xFFFFDBCF) // Container tint
-val DroidOrangeDisabled = Color(0xFFC4C2BC)  // Muted gray for disabled state
-val DroidOrangeSubtle = Color(0xFFFFF0E6)    // Very soft warm terracotta background
+// =========================================================================
+// NEU\CODE NEBULA PURPLE + CHARCOAL BLACK DESIGN SYSTEM
+// =========================================================================
 
-// Light Theme Neutrals (Crisp clean white & warm paper aesthetic)
-val LightBackground = Color(0xFFFFFFFF)      // Pure crisp white
-val LightSurface = Color(0xFFFFFFFF)         // Pure white surface
-val LightSurfaceVariant = Color(0xFFF7F6F3)  // Subtle off-white for cards, chips & inputs
-val LightOnBackground = Color(0xFF1E1D1B)    // Charcoal black primary text
-val LightOnSurface = Color(0xFF1E1D1B)
-val LightOnSurfaceVariant = Color(0xFF6F6D66) // Refined muted secondary text
-val LightOutline = Color(0xFFE5E2DA)         // Subtle clean border
-val LightOutlineVariant = Color(0xFFECEAE4)  // Very soft divider line
-val LightUserBubble = Color(0xFFFFF0E6)      // Warm soft user message bubble
-val LightUserBubbleBorder = Color(0xFFFFD1B3)
+// PRIMARY BACKGROUNDS
+val NeuCodeBg = Color(0xFF09090D)                // Main Background: #09090D
+val NeuCodeBgSecondary = Color(0xFF101014)       // Secondary Background: #101014
+val NeuCodeBgTertiary = Color(0xFF17151E)        // Tertiary Background: #17151E
 
-// Dark Theme Neutrals (Charcoal fallback if requested)
-val DarkBackground = Color(0xFF141311)
-val DarkSurface = Color(0xFF1F1E1B)
-val DarkSurfaceVariant = Color(0xFF2B2925)
-val DarkOnBackground = Color(0xFFEDEAE4)
-val DarkOnSurface = Color(0xFFEDEAE4)
-val DarkOnSurfaceVariant = Color(0xFFA5A29A)
-val DarkOutline = Color(0xFF423F3A)
-val DarkOutlineVariant = Color(0xFF33312C)
-val DarkUserBubble = Color(0xFF3B2618)
-val DarkUserBubbleBorder = Color(0xFF6B4025)
+// SURFACE COLORS
+val NeuCodeSurfacePrimary = Color(0xFF181720)    // Surface Primary: #181720
+val NeuCodeSurfaceSecondary = Color(0xFF201D29)  // Surface Secondary: #201D29
+val NeuCodeSurfaceElevated = Color(0xFF282333)   // Elevated Surface: #282333
 
-// Status / Feedback
-val ColorSuccess = Color(0xFF2E7D32)
-val ColorSuccessBg = Color(0xFFE8F5E9)
-val ColorWarning = Color(0xFFED6C02)
-val ColorWarningBg = Color(0xFFFFF3E0)
-val ColorError = Color(0xFFC62828)
-val ColorErrorBg = Color(0xFFFFEBEE)
+// NEBULA PURPLE ACCENTS
+val NeuCodePurplePrimary = Color(0xFF8B5CF6)     // Primary Purple: #8B5CF6
+val NeuCodeElectricViolet = Color(0xFFA78BFA)    // Electric Violet: #A78BFA
+val NeuCodePurpleDeep = Color(0xFF5B21B6)        // Deep Purple: #5B21B6
+val NeuCodeSoftLavender = Color(0xFFC4B5FD)      // Soft Lavender: #C4B5FD
+val NeuCodeMutedPurple = Color(0xFF6D4CB3)       // Muted Purple: #6D4CB3
+val NeuCodePurpleContainer = Color(0xFF251B38)   // Subtle purple container
+val NeuCodeAmbientGlow = Color(0x228B5CF6)       // Ambient purple glow
 
-// Code Syntax Colors
-val SyntaxKeyword = Color(0xFFA83232)
-val SyntaxFunction = Color(0xFF2B5B84)
-val SyntaxString = Color(0xFF38761D)
-val SyntaxComment = Color(0xFF8C887B)
-val SyntaxNumber = Color(0xFFB45F06)
-val SyntaxType = Color(0xFF674EA7)
+// TEXT COLORS
+val NeuCodeTextPrimary = Color(0xFFF5F3FA)       // Primary Text: #F5F3FA
+val NeuCodeTextSecondary = Color(0xFFAAA4B8)     // Secondary Text: #AAA4B8
+val NeuCodeTextMuted = Color(0xFF777181)         // Muted Text: #777181
 
-// Backward compatibility tokens for workspace and settings screens
-val ClaudeWarmBg = LightBackground
-val ClaudePureWhite = LightSurface
-val ClaudeSurfaceSubtle = LightSurfaceVariant
-val ClaudeBorder = LightOutline
-val ClaudeBorderLight = LightOutlineVariant
-val ClaudeTextPrimary = LightOnBackground
-val ClaudeTextSecondary = LightOnSurfaceVariant
-val ClaudeTextMuted = Color(0xFF9E9C94)
-val ClaudeTerracotta = DroidOrange
-val ClaudeTerracottaDark = DroidOrangeDark
-val ClaudeTerracottaLight = DroidOrangeSubtle
-val ClaudeTerracottaContainer = DroidOrangeContainer
-val ClaudeSuccess = ColorSuccess
-val ClaudeSuccessBg = ColorSuccessBg
-val ClaudeWarning = ColorWarning
-val ClaudeWarningBg = ColorWarningBg
-val ClaudeError = ColorError
-val ClaudeErrorBg = ColorErrorBg
-val ClaudeTerminalBg = Color(0xFF181715)
-val ClaudeTerminalSurface = Color(0xFF24221F)
-val ClaudeTerminalText = Color(0xFFEDEAE4)
+// BORDERS
+val NeuCodeBorder = Color(0xFF302B3A)            // Default: #302B3A
+val NeuCodeBorderActive = Color(0xFF6941A5)      // Active: #6941A5
+
+// STATUS COLORS
+val NeuCodeSuccess = Color(0xFF4ADE80)           // Success: #4ADE80
+val NeuCodeSuccessBg = Color(0xFF122818)
+val NeuCodeWarning = Color(0xFFFBBF24)           // Warning: #FBBF24
+val NeuCodeWarningBg = Color(0xFF2D230D)
+val NeuCodeError = Color(0xFFF87171)             // Error: #F87171
+val NeuCodeErrorBg = Color(0xFF301518)
+val NeuCodeInfo = Color(0xFF60A5FA)              // Information: #60A5FA
+val NeuCodeInfoBg = Color(0xFF142033)
+
+val NeuCodeLavender = NeuCodeSoftLavender
+val NeuCodeStatusSuccess = NeuCodeSuccess
+val NeuCodeStatusWarning = NeuCodeWarning
+val NeuCodeStatusError = NeuCodeError
+
+// INTELLIGENCE CORE COLORS
+val NeuCoreCenter = NeuCodeElectricViolet
+val NeuCoreGlow = NeuCodePurplePrimary
+val NeuCoreRingOuter = NeuCodePurpleDeep
+val NeuCoreRingInner = NeuCodeMutedPurple
+
+// USER & ASSISTANT BUBBLE ACCENTS
+val NeuUserBubble = Color(0xFF1F1A2E)
+val NeuUserBubbleBorder = NeuCodeBorderActive
+
+// SYNTAX HIGHLIGHTING (Nebula Violet & Cosmic Accents)
+val SyntaxKeyword = NeuCodeElectricViolet
+val SyntaxFunction = NeuCodeSoftLavender
+val SyntaxString = Color(0xFF86EFAC)
+val SyntaxComment = NeuCodeTextMuted
+val SyntaxNumber = Color(0xFFFDE047)
+val SyntaxType = Color(0xFF93C5FD)
+
+// =========================================================================
+// BACKWARDS-COMPATIBILITY TOKENS MAPPED TO NEU\CODE
+// =========================================================================
+val UltronBackground = NeuCodeBg
+val UltronBackgroundSecondary = NeuCodeBgSecondary
+val UltronCard = NeuCodeSurfacePrimary
+val UltronRedPrimary = NeuCodePurplePrimary
+val UltronRedAccent = NeuCodeElectricViolet
+val UltronRedDeep = NeuCodePurpleDeep
+val UltronTextPrimary = NeuCodeTextPrimary
+val UltronTextSecondary = NeuCodeTextSecondary
+val UltronBorder = NeuCodeBorder
+val UltronBorderAccent = NeuCodeBorderActive
+val UltronGlassPanel = NeuCodeSurfaceSecondary
+val UltronRedAmbient = NeuCodeAmbientGlow
+val UltronCoreCenter = NeuCoreCenter
+val UltronCoreRing = NeuCoreRingOuter
+
+val DarkBackground = NeuCodeBg
+val DarkSurface = NeuCodeBgSecondary
+val DarkSurfaceVariant = NeuCodeSurfacePrimary
+val DarkOnBackground = NeuCodeTextPrimary
+val DarkOnSurface = NeuCodeTextPrimary
+val DarkOnSurfaceVariant = NeuCodeTextSecondary
+val DarkOutline = NeuCodeBorder
+val DarkOutlineVariant = NeuCodeBorderActive
+val DarkUserBubble = NeuUserBubble
+val DarkUserBubbleBorder = NeuUserBubbleBorder
+
+val LightBackground = NeuCodeBg
+val LightSurface = NeuCodeBgSecondary
+val LightSurfaceVariant = NeuCodeSurfacePrimary
+val LightOnBackground = NeuCodeTextPrimary
+val LightOnSurface = NeuCodeTextPrimary
+val LightOnSurfaceVariant = NeuCodeTextSecondary
+val LightOutline = NeuCodeBorder
+val LightOutlineVariant = NeuCodeBorderActive
+val LightUserBubble = NeuUserBubble
+val LightUserBubbleBorder = NeuUserBubbleBorder
+
+val DroidOrange = NeuCodePurplePrimary
+val DroidOrangeDark = NeuCodePurpleDeep
+val DroidOrangeLight = NeuCodeElectricViolet
+val DroidOrangeContainer = NeuCodePurpleContainer
+val DroidOrangeDisabled = Color(0xFF433D52)
+val DroidOrangeSubtle = Color(0xFF1C1626)
+
+val ColorSuccess = NeuCodeSuccess
+val ColorSuccessBg = NeuCodeSuccessBg
+val ColorWarning = NeuCodeWarning
+val ColorWarningBg = NeuCodeWarningBg
+val ColorError = NeuCodeError
+val ColorErrorBg = NeuCodeErrorBg
+
+val ClaudeWarmBg = NeuCodeBg
+val ClaudePureWhite = NeuCodeSurfacePrimary
+val ClaudeSurfaceSubtle = NeuCodeBgSecondary
+val ClaudeBorder = NeuCodeBorder
+val ClaudeBorderLight = NeuCodeBorderActive
+val ClaudeTextPrimary = NeuCodeTextPrimary
+val ClaudeTextSecondary = NeuCodeTextSecondary
+val ClaudeTextMuted = NeuCodeTextMuted
+val ClaudeTerracotta = NeuCodePurplePrimary
+val ClaudeTerracottaDark = NeuCodePurpleDeep
+val ClaudeTerracottaLight = NeuCodeElectricViolet
+val ClaudeTerracottaContainer = NeuCodePurpleContainer
+val ClaudeSuccess = NeuCodeSuccess
+val ClaudeSuccessBg = NeuCodeSuccessBg
+val ClaudeWarning = NeuCodeWarning
+val ClaudeWarningBg = NeuCodeWarningBg
+val ClaudeError = NeuCodeError
+val ClaudeErrorBg = NeuCodeErrorBg
+val ClaudeTerminalBg = Color(0xFF0C0B12)
+val ClaudeTerminalSurface = NeuCodeSurfacePrimary
+val ClaudeTerminalText = NeuCodeTextPrimary

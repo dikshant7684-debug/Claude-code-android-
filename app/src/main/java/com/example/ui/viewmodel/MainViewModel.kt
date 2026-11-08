@@ -27,6 +27,8 @@ import com.example.data.preferences.EditorPreferences
 import com.example.data.preferences.GeneralPreferences
 import com.example.data.preferences.PreferencesManager
 import com.example.data.preferences.ToolPermissionPreferences
+import com.example.data.preferences.UserAccountInfo
+import com.example.data.preferences.AppCapabilities
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -176,6 +178,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   val toolPermissions: StateFlow<ToolPermissionPreferences> = preferencesManager.toolPermissionsFlow
     .stateIn(viewModelScope, SharingStarted.Eagerly, ToolPermissionPreferences())
 
+  val userAccount: StateFlow<UserAccountInfo> = preferencesManager.userAccountFlow
+    .stateIn(viewModelScope, SharingStarted.Eagerly, UserAccountInfo())
+
+  val appCapabilities: StateFlow<AppCapabilities> = preferencesManager.appCapabilitiesFlow
+    .stateIn(viewModelScope, SharingStarted.Eagerly, AppCapabilities())
+
+  val notificationsEnabled: StateFlow<Boolean> = preferencesManager.notificationsEnabledFlow
+    .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+  val hapticEnabled: StateFlow<Boolean> = preferencesManager.hapticEnabledFlow
+    .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
   private val _selectedProject = MutableStateFlow<Project?>(null)
   val selectedProject: StateFlow<Project?> = _selectedProject.asStateFlow()
 
@@ -311,9 +325,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Default initial conversation
     val initialSession = ConversationSession(
-      title = "Android Development",
+      title = "NEU\\CODE Workspace",
       lastUpdated = System.currentTimeMillis(),
-      previewText = "Welcome to Claude Code on Android"
+      previewText = "Welcome to NEU\\CODE on Android"
     )
     _conversations.value = listOf(initialSession)
     _activeConversationId.value = initialSession.id
@@ -516,12 +530,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
       }
 
       // Start task in agent
-      agentEngine.startTask(cleanPrompt, project, providerConfig.value)
+      val startedTask = agentEngine.startTask(cleanPrompt, project, providerConfig.value)
+      val targetTaskId = startedTask.id
 
       // Collect updates and synchronize assistant message
-      val collectJob = launch {
+      var collectJob: kotlinx.coroutines.Job? = null
+      collectJob = launch {
         agentEngine.currentTask.collect { task ->
           if (task == null) return@collect
+          // CRITICAL: Only process events for THIS task so previous messages are never overwritten!
+          if (task.id != targetTaskId) return@collect
 
           val isStillRunning = task.status == TaskStatus.PLANNING ||
             task.status == TaskStatus.INSPECTING ||
@@ -592,7 +610,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
           }
 
-          // When task completes, save to Room ONCE and open modified files
+          // When task completes, save to Room ONCE, open modified files, and terminate collector
           if (!isStillRunning) {
             val finalMsg = _chatMessages.value.firstOrNull { it.id == assistantMsgId }
             if (finalMsg != null && finalMsg.content.isNotBlank()) {
@@ -605,6 +623,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 openFile(touched)
               }
             }
+            // Terminate collector so subsequent tasks never mutate this assistant message
+            collectJob?.cancel()
           }
         }
       }
@@ -881,6 +901,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   fun saveToolPermissions(prefs: ToolPermissionPreferences) {
     viewModelScope.launch {
       preferencesManager.saveToolPermissions(prefs)
+    }
+  }
+
+  fun saveUserAccount(account: UserAccountInfo) {
+    viewModelScope.launch {
+      preferencesManager.saveUserAccount(account)
+    }
+  }
+
+  fun saveAppCapabilities(capabilities: AppCapabilities) {
+    viewModelScope.launch {
+      preferencesManager.saveAppCapabilities(capabilities)
+    }
+  }
+
+  fun setNotificationsEnabled(enabled: Boolean) {
+    viewModelScope.launch {
+      preferencesManager.saveNotificationsEnabled(enabled)
+    }
+  }
+
+  fun setHapticEnabled(enabled: Boolean) {
+    viewModelScope.launch {
+      preferencesManager.saveHapticEnabled(enabled)
     }
   }
 

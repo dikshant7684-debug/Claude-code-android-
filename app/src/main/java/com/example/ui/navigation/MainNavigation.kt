@@ -110,7 +110,7 @@ fun MainAppNavigation(viewModel: MainViewModel) {
       },
       text = {
         Text(
-          text = "Claude Code will create a 'Claude code' folder in your internal and external storage to systematically save your project files, exports, backups, and logs.\n\nAllow storage permissions to initialize your mobile workspace?",
+          text = "NEU\\CODE will create a 'NEU_CODE' folder in your storage to systematically preserve your project files, exports, backups, and logs.\n\nGrant storage permissions to initialize your mobile workspace?",
           style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -128,7 +128,7 @@ fun MainAppNavigation(viewModel: MainViewModel) {
             } else {
               showStorageDialog = false
               viewModel.initializeClaudeStorage()
-              Toast.makeText(context, "Claude code workspace created in storage", Toast.LENGTH_SHORT).show()
+              Toast.makeText(context, "NEU\\CODE workspace initialized in storage", Toast.LENGTH_SHORT).show()
             }
           },
           modifier = Modifier.testTag("storage_permission_grant_btn")
@@ -145,7 +145,7 @@ fun MainAppNavigation(viewModel: MainViewModel) {
           onClick = {
             showStorageDialog = false
             viewModel.initializeClaudeStorage()
-            Toast.makeText(context, "Created Claude code in app storage", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Created NEU\\CODE workspace in app storage", Toast.LENGTH_SHORT).show()
           },
           modifier = Modifier.testTag("storage_permission_skip_btn")
         ) {
@@ -268,6 +268,8 @@ fun MainAppNavigation(viewModel: MainViewModel) {
         BackHandler { currentScreen = MainScreen.CHAT }
         SettingsScreen(
           viewModel = viewModel,
+          onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
+          onNavigateBack = { currentScreen = MainScreen.CHAT },
           bottomBar = {
             ChatBottomNavigationBar(
               currentTab = DroidNavTab.SETTINGS,

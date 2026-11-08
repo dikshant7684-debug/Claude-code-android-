@@ -230,7 +230,7 @@ class HookEngine(
       }
 
       HookActionType.SEND_NOTIFICATION -> {
-        val title = "Claude Code: ${rule.name}"
+        val title = "NEU\\CODE: ${rule.name}"
         val body = event.toolOutput?.take(150) ?: "Event ${event.type.displayName} completed."
         val sent = notificationService.sendAutomationNotification(title, body)
         HookExecutionResult(isAllowed = true, outputMessage = if (sent) "Notification dispatched" else "Notification skipped")

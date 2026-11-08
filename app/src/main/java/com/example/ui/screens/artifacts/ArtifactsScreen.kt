@@ -347,7 +347,7 @@ fun ClaudeMotionHeroCard(
         // Title and Description
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
           Text(
-            text = "Claude Motion",
+            text = "NEU\\CODE Motion",
             style = MaterialTheme.typography.headlineSmall.copy(
               fontWeight = FontWeight.Bold,
               fontSize = 21.sp
@@ -401,7 +401,7 @@ fun ClaudeMotionHeroCard(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = if (projectCount > 0) "Open Claude Motion Workspace ($projectCount)" else "Launch Claude Motion",
+              text = if (projectCount > 0) "Open Motion Workspace ($projectCount)" else "Launch Motion Studio",
               style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp

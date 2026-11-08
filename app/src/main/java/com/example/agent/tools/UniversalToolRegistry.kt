@@ -11,6 +11,7 @@ import com.example.hooks.model.HookEventType
 import com.example.marketplace.service.SkillAndPluginManager
 import com.example.mcp.client.McpServerManager
 import com.example.mcp.registry.McpToolRegistry
+import com.example.agent.tools.impl.*
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.flow.firstOrNull
@@ -72,8 +73,28 @@ class UniversalToolRegistry(
 
   private val registeredTools = mutableMapOf<String, ToolDefinition>()
 
+  val providers: List<ToolCategoryProvider> = listOf(
+    FileSystemToolProvider(workspaceManager),
+    CodeUnderstandingToolProvider(workspaceManager),
+    CodeEditingToolProvider(workspaceManager),
+    TerminalCommandToolProvider(workspaceManager, buildManager),
+    DebuggingToolProvider(workspaceManager, buildManager),
+    GitToolProvider(workspaceManager),
+    ProjectManagementToolProvider(workspaceManager),
+    WebDocsToolProvider(),
+    AndroidDevToolProvider(workspaceManager, buildManager),
+    MultiAgentToolProvider(),
+    McpExtensionToolProvider(mcpServerManager, mcpToolRegistry, skillManager),
+    SecurityQualityToolProvider(workspaceManager)
+  )
+
   init {
     registerDefaultTools()
+    providers.forEach { provider ->
+      provider.getDefinitions().forEach { def ->
+        register(def)
+      }
+    }
   }
 
   private fun registerDefaultTools() {
@@ -446,7 +467,19 @@ class UniversalToolRegistry(
     }
 
     val result = try {
-      when (name) {
+      var providerResult: AutonomousToolResult? = null
+      for (provider in providers) {
+        val res = provider.execute(name, args, project, autoApproveWrites, autoApproveCommands)
+        if (res != null) {
+          providerResult = res
+          break
+        }
+      }
+
+      if (providerResult != null) {
+        providerResult
+      } else {
+        when (name) {
         "inspect_workspace", "inspect_project" -> {
           val overviewText = workspaceManager.getProjectSummaryText(project)
           AutonomousToolResult.Success(name, overviewText)
@@ -822,6 +855,7 @@ class UniversalToolRegistry(
             AutonomousToolResult.Error(name, "Unrecognized tool: $name")
           }
         }
+      }
       }
     } catch (e: Exception) {
       AutonomousToolResult.Error(name, "Tool execution exception: ${e.message}", e.message)

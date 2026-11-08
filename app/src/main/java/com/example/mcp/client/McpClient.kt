@@ -37,7 +37,7 @@ class McpClient(
       val initParams = JSONObject().apply {
         put("protocolVersion", McpProtocolConstants.LATEST_PROTOCOL_VERSION)
         put("clientInfo", JSONObject().apply {
-          put("name", "Claude Code Android")
+          put("name", "NEU\\CODE Android")
           put("version", "1.0.0")
         })
         put("capabilities", JSONObject().apply {

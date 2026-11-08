@@ -98,14 +98,14 @@ fun ClaudeNavigationDrawer(
   onClearHistory: () -> Unit,
   modifier: Modifier = Modifier
 ) {
-  val drawerBg = if (isDark) Color(0xFF191919) else Color(0xFFF7F6F0)
-  val surfaceBg = if (isDark) Color(0xFF242424) else Color(0xFFFFFFFF)
-  val borderCol = if (isDark) Color(0xFF333333) else Color(0xFFE8E6DE)
-  val textPrimary = if (isDark) Color(0xFFF2F2F2) else Color(0xFF252525)
-  val textSecondary = if (isDark) Color(0xFFA0A0A0) else Color(0xFF77766F)
-  val textMuted = if (isDark) Color(0xFF6E6E6E) else Color(0xFFA5A39B)
-  val accentTerracotta = Color(0xFFD95B26)
-  val accentContainer = if (isDark) Color(0xFF3B2618) else Color(0xFFFFE0D1)
+  val drawerBg = com.example.ui.theme.NeuCodeBg
+  val surfaceBg = com.example.ui.theme.NeuCodeSurfacePrimary
+  val borderCol = com.example.ui.theme.NeuCodeBorder
+  val textPrimary = com.example.ui.theme.NeuCodeTextPrimary
+  val textSecondary = com.example.ui.theme.NeuCodeTextSecondary
+  val textMuted = com.example.ui.theme.NeuCodeTextMuted
+  val accentTerracotta = com.example.ui.theme.NeuCodePurplePrimary
+  val accentContainer = com.example.ui.theme.NeuCodePurpleContainer
 
   val starredList = remember(conversations) { conversations.filter { it.isStarred } }
   val recentList = remember(conversations) { conversations.filter { !it.isStarred }.sortedByDescending { it.lastUpdated } }
@@ -141,28 +141,40 @@ fun ClaudeNavigationDrawer(
           // Application Logo
           Box(
             modifier = Modifier
-              .size(32.dp)
+              .size(34.dp)
               .clip(CircleShape)
               .background(surfaceBg)
-              .border(1.dp, borderCol, CircleShape),
+              .border(1.dp, com.example.ui.theme.NeuCodeBorderActive, CircleShape),
             contentAlignment = Alignment.Center
           ) {
             Image(
               painter = painterResource(id = R.drawable.cat_logo),
-              contentDescription = "Claude Code Logo",
+              contentDescription = "NEU\\CODE Emblem",
               modifier = Modifier.size(24.dp).clip(CircleShape)
             )
           }
 
-          Text(
-            text = "Claude Code",
-            style = MaterialTheme.typography.titleMedium.copy(
-              fontWeight = FontWeight.Bold,
-              fontSize = 17.sp,
-              fontFamily = FontFamily.SansSerif
-            ),
-            color = textPrimary
-          )
+          Column {
+            Text(
+              text = "NEU\\CODE",
+              style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                letterSpacing = 1.2.sp,
+                fontFamily = FontFamily.SansSerif
+              ),
+              color = textPrimary
+            )
+            Text(
+              text = "INTELLIGENCE BEYOND CODE",
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 8.sp,
+                letterSpacing = 0.8.sp,
+                fontWeight = FontWeight.SemiBold
+              ),
+              color = com.example.ui.theme.NeuCodeElectricViolet
+            )
+          }
         }
 
         Row(
@@ -377,7 +389,7 @@ fun ClaudeNavigationDrawer(
 
         item {
           DrawerNavItem(
-            title = "Claude Motion",
+            title = "Motion Studio",
             icon = Icons.Default.MovieFilter,
             isSelected = false,
             textColor = textPrimary,
@@ -740,10 +752,10 @@ private fun BottomAccountSection(
             modifier = Modifier
               .size(6.dp)
               .clip(CircleShape)
-              .background(Color(0xFF2E7D32))
+              .background(com.example.ui.theme.NeuCodeElectricViolet)
           )
           Text(
-            text = "Pro Plan · Active",
+            text = "NEU\\CODE Pro · Active",
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             color = textSecondary
           )

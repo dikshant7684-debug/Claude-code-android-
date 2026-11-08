@@ -1,6 +1,6 @@
 {
-  "name": "Claude Code",
-  "description": "Claude Code - AI coding companion and developer assistant for Android.",
+  "name": "NEU\\CODE",
+  "description": "NEU\\CODE - Advanced AI-powered developer environment and autonomous engineering system.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

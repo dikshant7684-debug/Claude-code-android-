@@ -94,10 +94,28 @@ class ExecutionLoop(
     taskStateFlow.value = task
     onCheckpoint(task, ExecutionStage.PLAN, plannedTask)
 
-    // Build system prompt with universal tools and real project context
+    // Build system prompt with universal tools, persistent instructions (CLAUDE.md), and project memory
     val baseSystemPrompt = toolRegistry.generateToolsPrompt(project)
     val projectSummary = workspaceManager.getProjectSummaryText(project)
-    val systemPrompt = "$baseSystemPrompt\n\n$projectSummary\n\nUser Request: ${task.userPrompt}"
+    
+    val projectRoot = java.io.File(project.rootPath)
+    com.example.context.PersistentInstructionManager.getInstance().discoverInstructions(project.id, projectRoot)
+    val claudeInstructions = com.example.context.PersistentInstructionManager.getInstance().formatApplicableInstructions(project.id, "")
+    val memoryBriefing = com.example.context.ProjectMemoryManager.getInstance(workspaceManager.context).formatMemoriesForContext(project.id, task.userPrompt, 1500)
+    val crossSessionBriefing = com.example.context.CrossSessionMemoryManager.getInstance(workspaceManager.context).buildCrossSessionBriefing(project.id)
+
+    val enhancedContext = buildString {
+      append(projectSummary)
+      if (claudeInstructions.isNotBlank()) append("\n\n").append(claudeInstructions)
+      if (crossSessionBriefing.isNotBlank()) append("\n\n").append(crossSessionBriefing)
+      if (memoryBriefing.isNotBlank()) append("\n\n").append(memoryBriefing)
+      append("\n\nDirective: ").append(task.userPrompt)
+    }
+
+    val systemPrompt = com.example.ultron.UltronPersonalityEngine.formatSystemPrompt(
+      baseToolsPrompt = baseSystemPrompt,
+      projectContext = enhancedContext
+    )
 
     messages.add(ChatMessage("user", task.userPrompt))
 

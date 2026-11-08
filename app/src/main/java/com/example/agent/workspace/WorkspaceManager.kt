@@ -62,7 +62,7 @@ data class ProjectArchitectureOverview(
  * path traversal protection, atomic writes with backups, and architectural project inspection.
  */
 class WorkspaceManager(
-  private val context: Context,
+  val context: Context,
   val fileManager: ProjectFileManager
 ) {
 
@@ -400,6 +400,11 @@ class WorkspaceManager(
   fun getOperationManifest(): List<FileOperationRecord> = synchronized(operationManifest) {
     operationManifest.toList()
   }
+
+  fun getOperationHistory(): List<FileOperationRecord> = getOperationManifest()
+
+  suspend fun getArchitectureOverview(project: Project): ProjectArchitectureOverview =
+    inspectProjectArchitecture(project)
 
   private fun recordOperation(record: FileOperationRecord) {
     synchronized(operationManifest) {

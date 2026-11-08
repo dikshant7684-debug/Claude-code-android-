@@ -34,53 +34,27 @@ class AgentToolRegistry(
   val hookEngine: HookEngine? = null
 ) {
 
+  val workspaceManager: com.example.agent.workspace.WorkspaceManager = com.example.agent.workspace.WorkspaceManager(fileManager.context, fileManager)
+  val universalToolRegistry: com.example.agent.tools.UniversalToolRegistry = com.example.agent.tools.UniversalToolRegistry(
+    workspaceManager = workspaceManager,
+    buildManager = buildManager,
+    skillManager = skillManager,
+    mcpServerManager = mcpServerManager,
+    mcpToolRegistry = mcpToolRegistry,
+    hookEngine = hookEngine
+  )
+
   fun getSystemPrompt(project: Project): String {
-    return """You are Claude Code, an expert autonomous software engineering agent running directly on an Android smartphone.
-Your goal is to inspect code, plan solutions, edit source files, run checks, and help developers build real software natively on Android.
+    val toolsPrompt = universalToolRegistry.generateToolsPrompt(project)
+    return """${com.example.ultron.UltronPersonalityEngine.SYSTEM_PERSONA_PROMPT}
+Your goal is to inspect code, plan solutions, edit source files, run checks, and execute software engineering directives natively on Android.
 
 CURRENT WORKSPACE:
 Name: ${project.name}
 Type: ${project.type.displayName}
 Root Path: ${project.rootPath}
 
-AVAILABLE TOOLS:
-To use a tool, respond with a JSON block in this exact format:
-<tool_call>
-{
-  "name": "tool_name",
-  "arguments": {
-    "key": "value"
-  }
-}
-</tool_call>
-
-Tools:
-1. inspect_workspace - Get an overview of the workspace directory structure and files.
-   arguments: {}
-
-2. list_directory - List files and directories in a given folder.
-   arguments: {"relative_path": "src/..."}
-
-3. read_file - Read the contents of a file (UTF-8).
-   arguments: {"relative_path": "main.py", "max_lines": 1000, "offset": 0}
-
-4. write_file - Write or overwrite a file with full contents. Creates an automatic diff for user review.
-   arguments: {"relative_path": "main.py", "content": "..."}
-
-5. apply_patch - Replace a specific unique target block of code with replacement content.
-   arguments: {"relative_path": "main.py", "target_content": "old code", "replacement_content": "new code"}
-
-6. search_files - Search for a keyword or regex across the codebase.
-   arguments: {"query": "fun main", "is_regex": false}
-
-7. inspect_syntax_error - Check workspace syntax and inspect code diagnostics.
-   arguments: {}
-
-8. verify_code - Run syntax verification checks on all workspace files.
-   arguments: {}
-
-9. run_plugin_capability - Execute an installed and enabled plugin tool.
-   arguments: {"extension_id": "droid-git-pro", "capability_name": "git_atomic_commit", "arguments": {}}
+$toolsPrompt
 
 GUIDELINES:
 - When asked to write, generate, or improve an AI prompt, output the complete generated prompt inside a fenced block tagged with ```prompt ... ``` so it renders as a dedicated copyable prompt block.
@@ -102,7 +76,23 @@ GUIDELINES:
     autoApproveWrites: Boolean,
     autoApproveCommands: Boolean = false
   ): ToolResult {
-    return try {
+    val relPath = args.optString("relative_path", "")
+    if (relPath.isNotBlank()) {
+      val status = if (name.contains("write") || name.contains("patch") || name.contains("create")) {
+        com.example.ui.system.WorkingFileManager.FileStatus.MODIFIED
+      } else {
+        com.example.ui.system.WorkingFileManager.FileStatus.READING
+      }
+      com.example.ui.system.WorkingFileManager.getInstance().reportFileAccess(relPath, name, status)
+    }
+
+    val activity = com.example.ui.system.AgentActivityManager.getInstance().recordStart(
+      name,
+      name.replace('_', ' ').replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+      relPath
+    )
+
+    val result = try {
       when (name) {
         "inspect_workspace", "inspect_project" -> {
           val overview = fileManager.getProjectOverview(project)
@@ -343,22 +333,53 @@ GUIDELINES:
         }
 
         else -> {
-          if (mcpToolRegistry != null && mcpToolRegistry.findToolByName(name) != null) {
-            val res = mcpToolRegistry.executeTool(name, args)
-            if (res.isSuccess) {
-              ToolResult.Success("MCP Tool '$name' output:\n${res.output}")
-            } else {
-              ToolResult.Error("MCP Tool '$name' failed: ${res.output}")
+          val autoRes = universalToolRegistry.executeTool(
+            name = name,
+            args = args,
+            project = project,
+            autoApproveWrites = autoApproveWrites,
+            autoApproveCommands = autoApproveCommands
+          )
+          when (autoRes) {
+            is com.example.agent.tools.AutonomousToolResult.Success -> {
+              ToolResult.Success(autoRes.output, autoRes.proposedChange)
             }
-          } else if (skillManager != null) {
-            skillManager.executePluginCapability(name, name, args, project)
-          } else {
-            ToolResult.Error("Unknown tool: $name")
+            is com.example.agent.tools.AutonomousToolResult.RequiresApproval -> {
+              ToolResult.RequiresApproval(
+                explanation = autoRes.explanation,
+                toolName = autoRes.toolName,
+                args = autoRes.arguments,
+                proposedChange = autoRes.proposedChange
+              )
+            }
+            is com.example.agent.tools.AutonomousToolResult.Error -> {
+              if (mcpToolRegistry != null && mcpToolRegistry.findToolByName(name) != null) {
+                val res = mcpToolRegistry.executeTool(name, args)
+                if (res.isSuccess) {
+                  ToolResult.Success("MCP Tool '$name' output:\n${res.output}")
+                } else {
+                  ToolResult.Error("MCP Tool '$name' failed: ${res.output}")
+                }
+              } else if (skillManager != null) {
+                skillManager.executePluginCapability(name, name, args, project)
+              } else {
+                ToolResult.Error(autoRes.output)
+              }
+            }
           }
         }
       }
     } catch (e: Exception) {
       ToolResult.Error("Tool execution error: ${e.message}")
     }
+
+    val success = result is ToolResult.Success
+    val details = when (result) {
+      is ToolResult.Success -> result.output.take(150)
+      is ToolResult.Error -> result.message
+      is ToolResult.RequiresApproval -> result.explanation
+    }
+    com.example.ui.system.AgentActivityManager.getInstance().recordFinish(activity.id, success, details)
+    return result
   }
 }

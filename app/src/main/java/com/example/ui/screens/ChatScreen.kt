@@ -61,6 +61,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -450,7 +451,52 @@ fun ChatScreenContent(
           }
         }
 
-        // Pinned Composer directly above keyboard or bottom navigation
+        val activeFiles = remember { com.example.ui.system.WorkingFileManager.getInstance().activeFiles }
+        if (activeFiles.isNotEmpty()) {
+          com.example.ui.components.WorkingFileIndicatorBar(
+            files = activeFiles,
+            onFileClick = { file ->
+              onOpenFile(file.relativePath)
+            },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+          )
+        }
+
+        if (uiState.inputText.startsWith("/")) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 16.dp, vertical = 4.dp)
+          ) {
+            com.example.ui.components.CommandPaletteMenu(
+              filterQuery = uiState.inputText,
+              onSelectCommand = { cmd ->
+                when (cmd) {
+                  "/clear" -> {
+                    onSuggestionClick("/clear")
+                    onInputChanged("")
+                  }
+                  "/model", "/models" -> {
+                    showModelSheet = true
+                    onInputChanged("")
+                  }
+                  "/settings" -> {
+                    onNavigateToSettings()
+                    onInputChanged("")
+                  }
+                  else -> {
+                    onInputChanged(cmd + " ")
+                  }
+                }
+              },
+              onDismiss = {
+                onInputChanged("")
+              }
+            )
+          }
+        }
+
+        // Pinned Composer directly above keyboard
         ChatComposerCard(
           inputText = uiState.inputText,
           onInputChanged = onInputChanged,
@@ -473,13 +519,7 @@ fun ChatScreenContent(
             .padding(horizontal = 16.dp, vertical = 6.dp)
         )
 
-        // Bottom Navigation Bar only shown when keyboard is NOT open
-        if (!isKeyboardOpen) {
-          ChatBottomNavigationBar(
-            currentTab = currentTab,
-            onTabSelected = onTabSelected
-          )
-        }
+        // Bottom navigation bar removed from CHAT screen per user directive
       }
     }
 
@@ -565,44 +605,54 @@ fun ChatTopAppBar(
         // Logo Brand Icon
         Box(
           modifier = Modifier
-            .size(32.dp)
+            .size(34.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primaryContainer),
+            .background(com.example.ui.theme.NeuCodeSurfacePrimary)
+            .border(1.dp, com.example.ui.theme.NeuCodeBorderActive, CircleShape),
           contentAlignment = Alignment.Center
         ) {
           Image(
             painter = painterResource(id = R.drawable.cat_logo),
-            contentDescription = "App Logo",
+            contentDescription = "NEU\\CODE Logo",
             modifier = Modifier.size(24.dp).clip(CircleShape)
           )
         }
 
-        // Title at 20sp semibold
-        Text(
-          text = "Claude Code",
-          style = MaterialTheme.typography.titleLarge.copy(
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold
-          ),
-          color = MaterialTheme.colorScheme.onSurface
-        )
+        // Title with NEU\CODE and DEV ENVIRONMENT pill badge
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          Text(
+            text = "NEU\\CODE",
+            style = MaterialTheme.typography.titleLarge.copy(
+              fontSize = 20.sp,
+              fontWeight = FontWeight.Bold,
+              letterSpacing = 1.2.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurface
+          )
+          Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = com.example.ui.theme.NeuCodePurpleContainer,
+            border = BorderStroke(1.dp, com.example.ui.theme.NeuCodeBorderActive)
+          ) {
+            Text(
+              text = "DEV CORE",
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.8.sp
+              ),
+              color = com.example.ui.theme.NeuCodeElectricViolet,
+              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+          }
+        }
       }
     },
     actions = {
-      IconButton(
-        onClick = onNavigateToSettings,
-        modifier = Modifier
-          .size(48.dp)
-          .semantics { contentDescription = "Open Settings" }
-          .testTag("chat_settings_button")
-      ) {
-        Icon(
-          imageVector = Icons.Default.Settings,
-          contentDescription = "Settings",
-          tint = MaterialTheme.colorScheme.onSurfaceVariant,
-          modifier = Modifier.size(24.dp)
-        )
-      }
+      // Setting icon removed from CHAT screen per user directive
     },
     colors = TopAppBarDefaults.topAppBarColors(
       containerColor = MaterialTheme.colorScheme.background,
@@ -631,10 +681,10 @@ fun EmptyChatState(
     )
   } else {
     listOf(
-      SuggestionItem("Build Android App", "Build a complete Jetpack Compose screen with state", Icons.Default.Android),
-      SuggestionItem("Fix Bug", "Inspect workspace source files and fix syntax or compile errors", Icons.Default.BugReport),
-      SuggestionItem("Generate Unit Tests", "Write unit tests verifying application state logic", Icons.Default.CheckCircle),
-      SuggestionItem("Explain Architecture", "Review the project structure, models, and state flows", Icons.Default.Code)
+      SuggestionItem("Scan Architecture", "Analyze the project codebase architecture and identify vulnerabilities", Icons.Default.Code),
+      SuggestionItem("Neutralize Errors", "Inspect project source files and eliminate all syntax and compiler errors", Icons.Default.BugReport),
+      SuggestionItem("Build Android UI", "Construct an advanced, high-performance Jetpack Compose screen", Icons.Default.Android),
+      SuggestionItem("System Diagnostics", "Execute test suites and verify system state stability", Icons.Default.CheckCircle)
     )
   }
 
@@ -646,26 +696,28 @@ fun EmptyChatState(
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.Center
   ) {
-    // Brand Cat emblem
+    // NEU\CODE Brand emblem
     Image(
       painter = painterResource(id = R.drawable.cat_logo),
-      contentDescription = "Claude Code Logo",
+      contentDescription = "NEU\\CODE Emblem",
       modifier = Modifier
-        .size(64.dp)
+        .size(68.dp)
         .clip(CircleShape)
+        .border(1.5.dp, com.example.ui.theme.NeuCodeBorderActive, CircleShape)
         .testTag("app_logo_image")
     )
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    // Greeting "Good to see you." (34-40sp, serif font, tight line height)
+    // NEU\CODE Heading
     Text(
-      text = if (isMotionMode) "Claude Motion" else "Good to see you.",
+      text = if (isMotionMode) "Motion Studio" else "NEU\\CODE",
       style = MaterialTheme.typography.displayLarge.copy(
-        fontSize = 38.sp,
-        lineHeight = 42.sp,
-        fontFamily = FontFamily.Serif,
-        fontWeight = FontWeight.Normal
+        fontSize = 36.sp,
+        lineHeight = 40.sp,
+        letterSpacing = 2.sp,
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold
       ),
       color = MaterialTheme.colorScheme.onBackground,
       textAlign = TextAlign.Center,
@@ -674,16 +726,16 @@ fun EmptyChatState(
 
     Spacer(modifier = Modifier.height(8.dp))
 
-    // Subtitle: 17-18sp, muted onSurfaceVariant
+    // Subtitle
     Text(
       text = if (isMotionMode) {
-        "Create, animate, edit, and export motion graphics with AI."
+        "AI motion graphics and cinematic rendering engine."
       } else {
-        "Your native autonomous coding assistant on Android."
+        "Autonomous developer environment. What shall we construct?"
       },
       style = MaterialTheme.typography.titleMedium.copy(
-        fontSize = 17.sp,
-        lineHeight = 24.sp
+        fontSize = 15.sp,
+        lineHeight = 22.sp
       ),
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       textAlign = TextAlign.Center,
@@ -816,7 +868,7 @@ fun ChatComposerCard(
         onValueChange = onInputChanged,
         placeholder = {
           Text(
-            text = "What would you like to build today?",
+            text = "State your directive...",
             style = MaterialTheme.typography.bodyLarge.copy(
               fontSize = 16.sp,
               lineHeight = 24.sp
@@ -936,7 +988,7 @@ fun ChatComposerCard(
           },
           enabled = isSendEnabled || isLoading,
           modifier = Modifier
-            .size(48.dp)
+            .size(36.dp)
             .clip(CircleShape)
             .background(buttonColor)
             .semantics {
@@ -949,14 +1001,14 @@ fun ChatComposerCard(
               imageVector = Icons.Default.Stop,
               contentDescription = "Stop",
               tint = Color.White,
-              modifier = Modifier.size(20.dp)
+              modifier = Modifier.size(16.dp)
             )
           } else {
             Icon(
               imageVector = Icons.Default.ArrowUpward,
               contentDescription = "Send",
               tint = if (isSendEnabled) Color.White else DroidOrangeDisabled,
-              modifier = Modifier.size(22.dp)
+              modifier = Modifier.size(18.dp)
             )
           }
         }
@@ -1492,7 +1544,7 @@ fun MessagesList(
   onExportMotion: (MotionProject, ExportFormat) -> Unit = { _, _ -> },
   onEditWithAi: (String) -> Unit = {},
   statusText: String = "Generating response...",
-  modelName: String = "Claude Code",
+  modelName: String = "NEU\\CODE",
   modifier: Modifier = Modifier
 ) {
   val listState = rememberLazyListState()
@@ -1572,8 +1624,8 @@ fun UserMessageBubble(
   ) {
     Surface(
       shape = RoundedCornerShape(topStart = 20.dp, topEnd = 6.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
-      color = LightUserBubble,
-      border = BorderStroke(1.dp, LightUserBubbleBorder),
+      color = com.example.ui.theme.NeuUserBubble,
+      border = BorderStroke(1.dp, com.example.ui.theme.NeuUserBubbleBorder),
       modifier = Modifier
         .widthIn(max = 320.dp)
         .padding(start = 48.dp)
@@ -1581,10 +1633,10 @@ fun UserMessageBubble(
       Text(
         text = message.content,
         style = MaterialTheme.typography.bodyLarge.copy(
-          fontSize = 16.sp,
-          lineHeight = 24.sp
+          fontSize = 15.sp,
+          lineHeight = 22.sp
         ),
-        color = LightOnBackground,
+        color = com.example.ui.theme.NeuCodeTextPrimary,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
       )
     }
@@ -1621,14 +1673,17 @@ fun AssistantMessageItem(
     ) {
       Image(
         painter = painterResource(id = R.drawable.cat_logo),
-        contentDescription = "Claude Code Assistant",
+        contentDescription = "NEU\\CODE Assistant",
         modifier = Modifier
           .size(28.dp)
           .clip(CircleShape)
       )
       Text(
-        text = "Claude Code",
-        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        text = "NEU\\CODE",
+        style = MaterialTheme.typography.titleSmall.copy(
+          fontWeight = FontWeight.Bold,
+          letterSpacing = 0.8.sp
+        ),
         color = MaterialTheme.colorScheme.onSurface
       )
     }
@@ -1815,8 +1870,8 @@ fun CodeBlockCard(
  */
 @Composable
 fun LoadingIndicatorRow(
-  statusText: String = "Generating response...",
-  modelName: String = "Claude Code",
+  statusText: String = "Executing directive...",
+  modelName: String = "NEU\\CODE",
   onCancelTask: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -1829,7 +1884,7 @@ fun LoadingIndicatorRow(
   ) {
     Image(
       painter = painterResource(id = R.drawable.cat_logo),
-      contentDescription = "Claude Code Assistant",
+      contentDescription = "NEU\\CODE Core",
       modifier = Modifier
         .size(28.dp)
         .clip(CircleShape)
@@ -1873,12 +1928,14 @@ fun ChatBottomNavigationBar(
   modifier: Modifier = Modifier
 ) {
   NavigationBar(
-    containerColor = MaterialTheme.colorScheme.surface,
-    contentColor = MaterialTheme.colorScheme.onSurface,
-    tonalElevation = 2.dp,
+    containerColor = com.example.ui.theme.NeuCodeBg,
+    contentColor = com.example.ui.theme.NeuCodeTextPrimary,
+    windowInsets = WindowInsets.navigationBars,
+    tonalElevation = 0.dp,
     modifier = modifier
       .fillMaxWidth()
-      .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant))
+      .background(com.example.ui.theme.NeuCodeBg)
+      .border(BorderStroke(1.dp, com.example.ui.theme.NeuCodeBorder))
       .testTag("droid_bottom_navigation")
   ) {
     DroidNavTab.values().forEach { tab ->
@@ -1903,11 +1960,11 @@ fun ChatBottomNavigationBar(
           )
         },
         colors = NavigationBarItemDefaults.colors(
-          selectedIconColor = MaterialTheme.colorScheme.primary,
-          selectedTextColor = MaterialTheme.colorScheme.primary,
-          indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-          unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-          unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+          selectedIconColor = com.example.ui.theme.NeuCodeElectricViolet,
+          selectedTextColor = com.example.ui.theme.NeuCodeElectricViolet,
+          indicatorColor = com.example.ui.theme.NeuCodePurpleContainer,
+          unselectedIconColor = com.example.ui.theme.NeuCodeTextSecondary,
+          unselectedTextColor = com.example.ui.theme.NeuCodeTextSecondary
         ),
         modifier = Modifier.testTag(tab.tag)
       )

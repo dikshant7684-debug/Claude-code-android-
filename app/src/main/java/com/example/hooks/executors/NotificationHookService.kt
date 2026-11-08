@@ -14,8 +14,8 @@ class NotificationHookService(private val context: Context) {
   private val notificationIdCounter = AtomicInteger(1000)
 
   companion object {
-    const val CHANNEL_ID = "claude_code_automations_channel"
-    const val CHANNEL_NAME = "Claude Code Automation Alerts"
+    const val CHANNEL_ID = "neucode_automations_channel"
+    const val CHANNEL_NAME = "NEU\\CODE Automation Alerts"
   }
 
   init {
@@ -29,7 +29,7 @@ class NotificationHookService(private val context: Context) {
         CHANNEL_NAME,
         NotificationManager.IMPORTANCE_DEFAULT
       ).apply {
-        description = "Notifications for Claude Code automated hooks, builds, and agent completions"
+        description = "Notifications for NEU\\CODE automated hooks, builds, and agent completions"
       }
       notificationManager.createNotificationChannel(channel)
     }
