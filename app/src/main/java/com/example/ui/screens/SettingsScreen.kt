@@ -104,18 +104,18 @@ import com.example.ui.viewmodel.MainViewModel
 // =========================================================================
 // NEU\CODE NEBULA PURPLE + CHARCOAL BLACK PALETTE
 // =========================================================================
-private val DarkBg = com.example.ui.theme.NeuCodeBg // #09090D
-private val CardPrimary = com.example.ui.theme.NeuCodeSurfacePrimary // #181720
-private val CardSecondary = com.example.ui.theme.NeuCodeSurfaceSecondary // #201D29
-private val TextPrimary = com.example.ui.theme.NeuCodeTextPrimary // #F5F3FA
-private val TextSecondary = com.example.ui.theme.NeuCodeTextSecondary // #AAA4B8
-private val BorderDark = com.example.ui.theme.NeuCodeBorder // #302B3A
-private val DividerDark = com.example.ui.theme.NeuCodeBorder // #302B3A
-private val AccentWhite = com.example.ui.theme.NeuCodeElectricViolet // #A78BFA
-private val AccentPillBg = com.example.ui.theme.NeuCodePurplePrimary // #8B5CF6
-private val AccentPillText = Color(0xFFFFFFFF)
-private val BadgeBg = com.example.ui.theme.NeuCodePurpleContainer // #251B38
-private val BadgeText = com.example.ui.theme.NeuCodeSoftLavender // #C4B5FD
+private val DarkBg: Color @Composable get() = MaterialTheme.colorScheme.background
+private val CardPrimary: Color @Composable get() = MaterialTheme.colorScheme.surface
+private val CardSecondary: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+private val TextPrimary: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+private val TextSecondary: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+private val BorderDark: Color @Composable get() = MaterialTheme.colorScheme.outlineVariant
+private val DividerDark: Color @Composable get() = MaterialTheme.colorScheme.outlineVariant
+private val AccentWhite: Color @Composable get() = MaterialTheme.colorScheme.primary
+private val AccentPillBg: Color @Composable get() = MaterialTheme.colorScheme.primary
+private val AccentPillText: Color @Composable get() = MaterialTheme.colorScheme.onPrimary
+private val BadgeBg: Color @Composable get() = MaterialTheme.colorScheme.primaryContainer
+private val BadgeText: Color @Composable get() = MaterialTheme.colorScheme.onPrimaryContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -760,6 +760,76 @@ fun SettingsScreen(
                 )
                 Text(
                   text = "${currentConfig.providerType.displayName} • ${currentConfig.modelId}",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 13.sp
+                  ),
+                  color = TextSecondary,
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+              }
+            }
+            Icon(
+              imageVector = Icons.Outlined.ChevronRight,
+              contentDescription = null,
+              tint = TextSecondary,
+              modifier = Modifier.size(20.dp)
+            )
+          }
+        }
+
+        // =====================================================================
+        // EXTENSION CENTER
+        // =====================================================================
+        SettingsSectionHeader(title = "EXTENSION CENTER")
+        Surface(
+          shape = RoundedCornerShape(24.dp),
+          color = CardPrimary,
+          border = BorderStroke(1.dp, BorderDark),
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+              val intent = android.content.Intent(context, com.example.extensions.ui.ExtensionCenterActivity::class.java)
+              context.startActivity(intent)
+            }
+            .testTag("extension_center_row")
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+          ) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+              Surface(
+                shape = CircleShape,
+                color = CardSecondary,
+                modifier = Modifier.size(40.dp)
+              ) {
+                Box(contentAlignment = Alignment.Center) {
+                  Icon(
+                    imageVector = Icons.Outlined.Extension,
+                    contentDescription = null,
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                  )
+                }
+              }
+              Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                  text = "Skills & Agents Ecosystem",
+                  style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 16.sp
+                  ),
+                  color = TextPrimary
+                )
+                Text(
+                  text = "Discover, install, create, and manage AI skills & agents",
                   style = MaterialTheme.typography.bodySmall.copy(
                     fontSize = 13.sp
                   ),

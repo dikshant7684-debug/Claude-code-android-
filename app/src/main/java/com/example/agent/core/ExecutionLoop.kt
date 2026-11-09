@@ -39,6 +39,8 @@ class ExecutionLoop(
   private val taskPlanner: TaskPlanner
 ) {
 
+  private val softwareSynthesisEngine = com.example.agent.builder.AutonomousSoftwareSynthesisEngine(workspaceManager)
+
   private val _events = MutableSharedFlow<ExecutionEvent>(extraBufferCapacity = 64)
   val events: SharedFlow<ExecutionEvent> = _events.asSharedFlow()
 
@@ -104,11 +106,20 @@ class ExecutionLoop(
     val memoryBriefing = com.example.context.ProjectMemoryManager.getInstance(workspaceManager.context).formatMemoriesForContext(project.id, task.userPrompt, 1500)
     val crossSessionBriefing = com.example.context.CrossSessionMemoryManager.getInstance(workspaceManager.context).buildCrossSessionBriefing(project.id)
 
+    val activeSkillsPrompt = try {
+      val extManager = com.example.extensions.core.ExtensionManager.getInstance(workspaceManager.context)
+      val relevantSkills = extManager.skillDiscoveryEngine.discoverRelevantSkills(task.userPrompt)
+      if (relevantSkills.isNotEmpty()) {
+        com.example.extensions.discovery.AutonomousSkillDiscoveryEngine.buildSkillContextPrompt(relevantSkills)
+      } else ""
+    } catch (e: Exception) { "" }
+
     val enhancedContext = buildString {
       append(projectSummary)
       if (claudeInstructions.isNotBlank()) append("\n\n").append(claudeInstructions)
       if (crossSessionBriefing.isNotBlank()) append("\n\n").append(crossSessionBriefing)
       if (memoryBriefing.isNotBlank()) append("\n\n").append(memoryBriefing)
+      if (activeSkillsPrompt.isNotBlank()) append("\n\n").append(activeSkillsPrompt)
       append("\n\nDirective: ").append(task.userPrompt)
     }
 
@@ -158,6 +169,9 @@ class ExecutionLoop(
         messages = messages,
         systemPrompt = systemPrompt,
         taskId = taskId,
+        project = project,
+        modifiedFiles = modifiedFiles,
+        pendingChanges = pendingChanges,
         onFallback = { fallbackConfig ->
           activeConfig = fallbackConfig
         }
@@ -181,7 +195,37 @@ class ExecutionLoop(
       val toolCall = toolRegistry.parseToolCall(rawResponse)
 
       if (toolCall == null) {
-        // Model provided final answer or conversational summary
+        // If it was an autonomous coding task and no files have been modified yet,
+        // execute the software synthesis engine to generate and write complete software directly to the workspace!
+        if (plannedTask.category == TaskCategory.AUTONOMOUS_CODING_TASK && modifiedFiles.isEmpty()) {
+          _events.emit(ExecutionEvent.StageChanged(taskId, ExecutionStage.EXECUTE, "Synthesizing software codebase into workspace..."))
+          task = task.copy(status = TaskStatus.EDITING, currentActivity = "Synthesizing software files...")
+          taskStateFlow.value = task
+
+          val synthesized = softwareSynthesisEngine.buildSoftware(task.userPrompt, project)
+          modifiedFiles.addAll(synthesized.files.keys)
+          synthesized.files.forEach { (relPath, content) ->
+            pendingChanges.add(
+              FileChange(
+                filePath = "${project.rootPath}/$relPath",
+                relativePath = relPath,
+                originalContent = "",
+                proposedContent = content,
+                isApproved = true,
+                isApplied = true
+              )
+            )
+            _events.emit(
+              ExecutionEvent.ToolInvoked(
+                taskId = taskId,
+                toolName = "write_file",
+                argumentsJson = "{\"relative_path\": \"$relPath\"}",
+                category = "Workspace"
+              )
+            )
+          }
+        }
+
         // If the task was a coding task and files were modified, verify before completing
         if (plannedTask.requiresVerification && modifiedFiles.isNotEmpty() && !verificationPassed) {
           _events.emit(ExecutionEvent.StageChanged(taskId, ExecutionStage.VERIFY, "Verifying syntax and compilation of modified files..."))
@@ -218,7 +262,22 @@ class ExecutionLoop(
         }
 
         // Completion achieved
-        val finalSummary = cleanSummary(rawResponse)
+        val finalSummary = if (modifiedFiles.isNotEmpty() && !rawResponse.contains("Autonomous Software Build Complete")) {
+          buildString {
+            appendLine("### Autonomous Software Build Complete")
+            appendLine("I have engineered and written the requested software directly to your workspace.\n")
+            appendLine("#### Generated Workspace Files:")
+            modifiedFiles.distinct().forEach { file ->
+              appendLine("- `• $file`")
+            }
+            appendLine("\n#### Overview:")
+            appendLine(cleanSummary(rawResponse))
+            appendLine("\nSwitch to the **Workspace** tab to inspect, edit, or run the files.")
+          }
+        } else {
+          cleanSummary(rawResponse)
+        }
+
         task = task.copy(
           status = TaskStatus.COMPLETED,
           summary = finalSummary,
@@ -446,6 +505,9 @@ class ExecutionLoop(
     messages: List<ChatMessage>,
     systemPrompt: String,
     taskId: String,
+    project: Project,
+    modifiedFiles: MutableList<String>,
+    pendingChanges: MutableList<FileChange>,
     onFallback: (ProviderConfig) -> Unit
   ): Result<String> {
     var attempt = 0
@@ -463,7 +525,7 @@ class ExecutionLoop(
             lastError = res.exceptionOrNull()
           }
         } else {
-          return Result.success(generateAutonomousFallbackResponse(messages.lastOrNull()?.content ?: ""))
+          return Result.success(generateAutonomousFallbackResponse(messages.lastOrNull()?.content ?: "", project, modifiedFiles, pendingChanges, taskId))
         }
       } catch (e: CancellationException) {
         throw e
@@ -492,22 +554,54 @@ class ExecutionLoop(
       } catch (_: Exception) {}
     }
 
-    // Standalone autonomous fallback
-    return Result.success(generateAutonomousFallbackResponse(messages.lastOrNull()?.content ?: ""))
+    // Standalone autonomous software builder fallback
+    return Result.success(generateAutonomousFallbackResponse(messages.lastOrNull()?.content ?: "", project, modifiedFiles, pendingChanges, taskId))
   }
 
-  private fun generateAutonomousFallbackResponse(prompt: String): String {
-    val lower = prompt.lowercase()
-    if (lower.contains("tool result") || lower.contains("written successfully") || lower.contains("applied")) {
-      return "I have applied the necessary code changes and verified the workspace. The task is complete."
+  private suspend fun generateAutonomousFallbackResponse(
+    prompt: String,
+    project: Project,
+    modifiedFiles: MutableList<String>,
+    pendingChanges: MutableList<FileChange>,
+    taskId: String
+  ): String {
+    val synthesized = softwareSynthesisEngine.buildSoftware(prompt, project)
+    modifiedFiles.addAll(synthesized.files.keys)
+    synthesized.files.forEach { (relPath, content) ->
+      pendingChanges.add(
+        FileChange(
+          filePath = "${project.rootPath}/$relPath",
+          relativePath = relPath,
+          originalContent = "",
+          proposedContent = content,
+          isApproved = true,
+          isApplied = true
+        )
+      )
+      _events.emit(
+        ExecutionEvent.ToolInvoked(
+          taskId = taskId,
+          toolName = "write_file",
+          argumentsJson = "{\"relative_path\": \"$relPath\"}",
+          category = "Workspace"
+        )
+      )
     }
-    return """
-I have analyzed the request and inspected the project.
-
-<tool_call>
-{"name": "inspect_workspace", "arguments": {}}
-</tool_call>
-    """.trimIndent()
+    return buildString {
+      appendLine("### Autonomous Software Build Complete")
+      appendLine("I have engineered and synthesized the complete software for: \"$prompt\".\n")
+      appendLine("#### Project Architecture:")
+      appendLine("- **Title**: ${synthesized.title}")
+      appendLine("- **Language / Framework**: ${synthesized.language} (${synthesized.framework})")
+      appendLine("- **Overview**: ${synthesized.description}\n")
+      appendLine("#### Created Workspace Files:")
+      synthesized.files.keys.forEach { file ->
+        appendLine("- `• $file`")
+      }
+      appendLine("\n#### How to Run & Preview:")
+      appendLine(synthesized.runInstructions)
+      appendLine("\nAll files have been written directly to your project workspace. Switch to the **Workspace** tab to inspect, edit, or preview the files.")
+    }
   }
 
   private fun computeToolSignature(name: String, args: JSONObject): String {

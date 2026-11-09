@@ -7,10 +7,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.navigation.MainAppNavigation
-import com.example.ui.theme.ClaudeCodeTheme
+import com.example.ui.theme.NeuCodeTheme
 import com.example.ui.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
@@ -28,10 +31,10 @@ class MainActivity : ComponentActivity() {
         "LIGHT" -> false
         else -> systemInDark
       }
-      com.example.ui.theme.NeuCodeTheme(darkTheme = true) {
-        androidx.compose.material3.Surface(
-          modifier = androidx.compose.ui.Modifier.fillMaxSize(),
-          color = com.example.ui.theme.NeuCodeBg
+      NeuCodeTheme(darkTheme = isDark) {
+        Surface(
+          modifier = Modifier.fillMaxSize(),
+          color = MaterialTheme.colorScheme.background
         ) {
           MainAppNavigation(viewModel = viewModel)
         }

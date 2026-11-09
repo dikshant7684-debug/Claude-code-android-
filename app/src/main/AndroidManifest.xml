@@ -29,6 +29,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="com.example.extensions.ui.ExtensionCenterActivity"
+            android:exported="false"
+            android:label="Extension Center"
+            android:theme="@style/Theme.MyApplication" />
+        <activity
+            android:name="com.example.extensions.ui.ExtensionDetailActivity"
+            android:exported="false"
+            android:label="Extension Details"
+            android:theme="@style/Theme.MyApplication" />
+        <activity
+            android:name="com.example.extensions.ui.CustomExtensionCreatorActivity"
+            android:exported="false"
+            android:label="Create Extension"
+            android:theme="@style/Theme.MyApplication" />
     </application>
 
 </manifest>

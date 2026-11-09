@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -23,13 +25,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +51,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -218,7 +221,7 @@ fun ModelSelectionBottomSheet(
         Spacer(modifier = Modifier.size(48.dp))
       }
 
-      Divider(
+      HorizontalDivider(
         color = MaterialTheme.colorScheme.outlineVariant,
         thickness = 1.dp
       )
@@ -311,7 +314,7 @@ fun ModelSelectionBottomSheet(
               }
 
               Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
@@ -326,7 +329,8 @@ fun ModelSelectionBottomSheet(
 }
 
 /**
- * Individual selectable model card with badge, description, and visual selection indicator.
+ * Individual selectable model card with uniform dimensions, clean typography,
+ * consistent multi-line description height, subtle provider tag, and centered selection radio.
  */
 @Composable
 fun ModelCardItem(
@@ -357,96 +361,68 @@ fun ModelCardItem(
     border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor),
     modifier = modifier
       .fillMaxWidth()
+      .height(96.dp)
       .clickable { onClick() }
       .testTag("model_card_${info.displayName.lowercase().replace(" ", "_").replace("(", "").replace(")", "")}")
       .semantics { contentDescription = "Select ${info.displayName}${if (isSelected) ", currently selected" else ""}" }
   ) {
     Row(
       modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 14.dp, vertical = 12.dp),
+        .fillMaxSize()
+        .padding(horizontal = 14.dp, vertical = 11.dp),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
       Column(
         modifier = Modifier
           .weight(1f)
+          .fillMaxHeight()
           .padding(end = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.SpaceBetween
       ) {
-        // Name and Badge Row
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          Text(
-            text = info.displayName,
-            style = MaterialTheme.typography.titleSmall.copy(
-              fontSize = 15.sp,
-              fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
-            ),
-            color = MaterialTheme.colorScheme.onSurface
-          )
+        // Model Name (Top-left, clean without any badges or labels)
+        Text(
+          text = info.displayName,
+          style = MaterialTheme.typography.titleSmall.copy(
+            fontSize = 14.5.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+          ),
+          color = MaterialTheme.colorScheme.onSurface,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis
+        )
 
-          // Category / Capability Badge
-          Surface(
-            shape = RoundedCornerShape(6.dp),
-            color = if (isSelected) {
-              MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-            } else {
-              MaterialTheme.colorScheme.surface
-            },
-            border = BorderStroke(
-              width = 1.dp,
-              color = if (isSelected) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-              } else {
-                MaterialTheme.colorScheme.outlineVariant
-              }
-            )
-          ) {
-            Text(
-              text = info.badge,
-              style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold
-              ),
-              color = if (isSelected) {
-                MaterialTheme.colorScheme.primary
-              } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-              },
-              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-          }
-        }
-
-        // Description
+        // Description (Underneath model name, exactly 2 lines height for uniform layout)
         Text(
           text = info.description,
           style = MaterialTheme.typography.bodySmall.copy(
-            fontSize = 12.sp,
-            lineHeight = 16.sp
+            fontSize = 11.5.sp,
+            lineHeight = 15.sp
           ),
-          color = MaterialTheme.colorScheme.onSurfaceVariant
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          minLines = 2,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis
         )
 
-        // Provider attribution
+        // Provider information (Subtle and consistently positioned at bottom)
         Text(
           text = info.provider,
           style = MaterialTheme.typography.labelSmall.copy(
             fontSize = 10.5.sp,
             fontWeight = FontWeight.Medium
           ),
-          color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+          color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis
         )
       }
 
-      // Selection Checkmark Indicator
+      // Selection Checkmark / Radio Indicator (Vertically centered)
       if (isSelected) {
         Box(
           modifier = Modifier
-            .size(24.dp)
+            .size(22.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primary),
           contentAlignment = Alignment.Center
@@ -455,13 +431,13 @@ fun ModelCardItem(
             imageVector = Icons.Default.Check,
             contentDescription = "Selected",
             tint = Color.White,
-            modifier = Modifier.size(15.dp)
+            modifier = Modifier.size(14.dp)
           )
         }
       } else {
         Box(
           modifier = Modifier
-            .size(24.dp)
+            .size(22.dp)
             .clip(CircleShape)
             .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
         )

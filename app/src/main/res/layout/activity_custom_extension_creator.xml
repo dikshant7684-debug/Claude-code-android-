@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootCreator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#09090D"
+    android:fitsSystemWindows="true"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/btnCreatorBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_revert"
+                android:tint="#F5F3FA"
+                android:contentDescription="Back" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="Create Custom Extension"
+                android:textColor="#F5F3FA"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Extension Type Picker -->
+        <RadioGroup
+            android:id="@+id/rgExtensionType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <RadioButton
+                android:id="@+id/rbSkill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Skill (SKILL.md)"
+                android:textColor="#F5F3FA"
+                android:checked="true"
+                android:layout_marginEnd="16dp" />
+
+            <RadioButton
+                android:id="@+id/rbAgent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Specialized Agent"
+                android:textColor="#F5F3FA" />
+        </RadioGroup>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Extension Name"
+            android:textColor="#AAA4B8"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etCreatorName"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="#14131A"
+            android:textColor="#F5F3FA"
+            android:hint="e.g. Android Debugging Specialist"
+            android:textColorHint="#777181"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Description"
+            android:textColor="#AAA4B8"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etCreatorDescription"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="#14131A"
+            android:textColor="#F5F3FA"
+            android:hint="Short overview of capabilities"
+            android:textColorHint="#777181"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:id="@+id/tvInstructionsLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Instructions / SKILL.md Content"
+            android:textColor="#AAA4B8"
+            android:textSize="12sp" />
+
+        <EditText
+            android:id="@+id/etCreatorInstructions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minLines="8"
+            android:gravity="top"
+            android:background="#14131A"
+            android:textColor="#F5F3FA"
+            android:hint="Write domain-specific prompts, rules, patterns..."
+            android:textColorHint="#777181"
+            android:padding="12dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:fontFamily="monospace" />
+
+        <Button
+            android:id="@+id/btnSubmitCreator"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Save &amp; Activate Extension"
+            android:textColor="#FFFFFF"
+            android:background="#8B5CF6"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</ScrollView>

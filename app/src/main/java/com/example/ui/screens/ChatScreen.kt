@@ -516,7 +516,7 @@ fun ChatScreenContent(
           focusRequester = focusRequester,
           modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 16.dp)
         )
 
         // Bottom navigation bar removed from CHAT screen per user directive
@@ -1928,14 +1928,14 @@ fun ChatBottomNavigationBar(
   modifier: Modifier = Modifier
 ) {
   NavigationBar(
-    containerColor = com.example.ui.theme.NeuCodeBg,
-    contentColor = com.example.ui.theme.NeuCodeTextPrimary,
+    containerColor = MaterialTheme.colorScheme.surface,
+    contentColor = MaterialTheme.colorScheme.onSurface,
     windowInsets = WindowInsets.navigationBars,
     tonalElevation = 0.dp,
     modifier = modifier
       .fillMaxWidth()
-      .background(com.example.ui.theme.NeuCodeBg)
-      .border(BorderStroke(1.dp, com.example.ui.theme.NeuCodeBorder))
+      .background(MaterialTheme.colorScheme.surface)
+      .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant))
       .testTag("droid_bottom_navigation")
   ) {
     DroidNavTab.values().forEach { tab ->

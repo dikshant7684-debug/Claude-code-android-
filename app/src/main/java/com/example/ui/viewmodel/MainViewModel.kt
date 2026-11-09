@@ -523,6 +523,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
       _chatMessages.update { prev -> (prev + userMsg).distinctBy { it.id } }
       chatRepository.saveMessage(userMsg)
 
+      // Extension Command Check: Install or create skills/agents directly from chat
+      if (com.example.extensions.chat.ChatExtensionCommandDetector.isExtensionCommand(cleanPrompt)) {
+        val initialMsg = UiChatMessage(
+          id = assistantMsgId,
+          role = MessageRole.ASSISTANT,
+          content = "⏳ Processing extension request...",
+          timestamp = System.currentTimeMillis()
+        )
+        _chatMessages.update { prev -> (prev + initialMsg).distinctBy { it.id } }
+
+        com.example.extensions.chat.ChatExtensionCommandDetector.executeCommand(
+          getApplication(),
+          cleanPrompt,
+          object : com.example.extensions.chat.ChatExtensionCommandDetector.ChatCommandCallback {
+            override fun onOperationStarted(extensionName: String, operation: String) {
+              _chatMessages.update { prev ->
+                prev.map { if (it.id == assistantMsgId) it.copy(content = "⏳ Starting: $operation...") else it }
+              }
+            }
+
+            override fun onProgress(event: com.example.extensions.models.InstallationEvent) {
+              _chatMessages.update { prev ->
+                prev.map { if (it.id == assistantMsgId) it.copy(content = "📦 [${event.status}] ${event.currentOperation}") else it }
+              }
+            }
+
+            override fun onCompleted(summaryResponse: String) {
+              val completedMsg = UiChatMessage(
+                id = assistantMsgId,
+                role = MessageRole.ASSISTANT,
+                content = summaryResponse,
+                timestamp = System.currentTimeMillis()
+              )
+              _chatMessages.update { prev ->
+                prev.map { if (it.id == assistantMsgId) completedMsg else it }
+              }
+              viewModelScope.launch {
+                chatRepository.saveMessage(completedMsg)
+              }
+            }
+
+            override fun onError(errorMessage: String) {
+              val errorMsg = UiChatMessage(
+                id = assistantMsgId,
+                role = MessageRole.ASSISTANT,
+                content = "❌ $errorMessage",
+                timestamp = System.currentTimeMillis()
+              )
+              _chatMessages.update { prev ->
+                prev.map { if (it.id == assistantMsgId) errorMsg else it }
+              }
+              viewModelScope.launch {
+                chatRepository.saveMessage(errorMsg)
+              }
+            }
+          }
+        )
+        return@launch
+      }
+
       // Claude Motion Check: If in Motion Mode or user asked for motion graphics/video/animation
       if (_isMotionMode.value || isAnimationPrompt(cleanPrompt)) {
         handleMotionGenerationOrEdit(cleanPrompt, assistantMsgId)

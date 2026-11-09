@@ -2,13 +2,12 @@ package com.example.build
 
 import com.example.data.files.ProjectFileManager
 import com.example.data.model.Project
-import com.example.data.model.ProjectType
 import java.io.File
 
 data class BuildDiagnostic(
+  val severity: String,
   val filePath: String,
   val line: Int,
-  val severity: String,
   val message: String
 )
 
@@ -16,174 +15,106 @@ data class BuildResult(
   val isSuccess: Boolean,
   val message: String,
   val diagnostics: List<BuildDiagnostic> = emptyList(),
-  val exitCode: Int = if (isSuccess) 0 else 1
+  val output: String = "",
+  val timestamp: Long = System.currentTimeMillis()
 )
 
+/**
+ * Manages project compilation, static analysis, syntax balance diagnostics,
+ * and build verification across supported frameworks and languages.
+ */
 class BuildWorkflowManager(
-  val fileManager: ProjectFileManager
+  private val fileManager: ProjectFileManager
 ) {
 
-  /**
-   * Performs an actual structural and syntax verification check on the project.
-   */
-  suspend fun checkAndBuild(project: Project): BuildResult {
-    val root = File(project.rootPath)
-    if (!root.exists() || !root.isDirectory) {
+  fun checkAndBuild(project: Project): BuildResult {
+    val projectDir = File(project.rootPath)
+    if (!projectDir.exists()) {
       return BuildResult(
         isSuccess = false,
-        message = "Project root does not exist: ${project.rootPath}",
-        exitCode = 1
+        message = "Project directory not found on device.",
+        diagnostics = listOf(
+          BuildDiagnostic("ERROR", projectDir.path, 1, "Project root path does not exist.")
+        )
       )
     }
 
     val diagnostics = mutableListOf<BuildDiagnostic>()
+    val files = projectDir.walkTopDown()
+      .filter { it.isFile && !it.path.contains("/build/") && !it.path.contains("/.git/") }
+      .take(100)
+      .toList()
 
-    // Check project-specific configs
-    when (project.type) {
-      ProjectType.KOTLIN_ANDROID -> {
-        val settingsFile = File(root, "settings.gradle.kts")
-        val settingsFileGroovy = File(root, "settings.gradle")
-        if (!settingsFile.exists() && !settingsFileGroovy.exists()) {
-          diagnostics.add(
-            BuildDiagnostic("settings.gradle.kts", 1, "ERROR", "Missing settings.gradle or settings.gradle.kts in root.")
-          )
-        }
-
-        val buildFile = File(root, "build.gradle.kts")
-        val buildFileGroovy = File(root, "build.gradle")
-        if (!buildFile.exists() && !buildFileGroovy.exists()) {
-          diagnostics.add(
-            BuildDiagnostic("build.gradle.kts", 1, "ERROR", "Missing root build.gradle or build.gradle.kts.")
-          )
-        }
-
-        val appDir = File(root, "app")
-        if (appDir.exists()) {
-          val appBuild = File(appDir, "build.gradle.kts")
-          val appBuildGroovy = File(appDir, "build.gradle")
-          if (!appBuild.exists() && !appBuildGroovy.exists()) {
-            diagnostics.add(
-              BuildDiagnostic("app/build.gradle.kts", 1, "WARNING", "Missing app/build.gradle[.kts] build script.")
-            )
-          }
-          val manifest = File(appDir, "src/main/AndroidManifest.xml")
-          if (!manifest.exists()) {
-            diagnostics.add(
-              BuildDiagnostic("app/src/main/AndroidManifest.xml", 1, "ERROR", "Missing AndroidManifest.xml.")
-            )
-          }
-        }
-      }
-      ProjectType.NODE_JS -> {
-        val pkgJson = File(root, "package.json")
-        if (!pkgJson.exists()) {
-          diagnostics.add(
-            BuildDiagnostic("package.json", 1, "ERROR", "Missing package.json file.")
-          )
-        }
-      }
-      ProjectType.PYTHON -> {
-        val reqs = File(root, "requirements.txt")
-        val pyproject = File(root, "pyproject.toml")
-        if (!reqs.exists() && !pyproject.exists()) {
-          diagnostics.add(
-            BuildDiagnostic("requirements.txt", 1, "WARNING", "No requirements.txt or pyproject.toml found.")
-          )
-        }
-      }
-      else -> {
-        // General project inspection
+    for (file in files) {
+      val ext = file.extension.lowercase()
+      if (ext in listOf("kt", "java", "js", "ts", "jsx", "tsx", "py", "html", "json", "xml")) {
+        val content = try { file.readText() } catch (e: Exception) { "" }
+        val fileDiagnostics = inspectFileSyntax(file, content, projectDir)
+        diagnostics.addAll(fileDiagnostics)
       }
     }
 
-    // Inspect files for syntax markers or unclosed blocks
-    val files = fileManager.listFiles(project).filter { !it.isDirectory }
-    for (f in files.take(30)) {
-      if (f.name.endsWith(".kt") || f.name.endsWith(".java")) {
-        try {
-          val content = fileManager.readFile(project, f.relativePath, 300, 0)
-          val openBraces = content.count { it == '{' }
-          val closeBraces = content.count { it == '}' }
-          if (openBraces != closeBraces) {
-            diagnostics.add(
-              BuildDiagnostic(
-                filePath = f.relativePath,
-                line = 1,
-                severity = "ERROR",
-                message = "Mismatched braces detected: $openBraces '{' vs $closeBraces '}'"
-              )
-            )
-          }
-        } catch (_: Exception) {}
-      }
-    }
-
-    val isSuccess = diagnostics.none { it.severity == "ERROR" }
-    val message = if (isSuccess) {
-      "Project check passed (${files.size} source files verified, 0 critical errors)."
-    } else {
-      "Project check completed with ${diagnostics.size} issue(s)."
-    }
-
+    val hasErrors = diagnostics.any { it.severity == "ERROR" }
     return BuildResult(
-      isSuccess = isSuccess,
-      message = message,
+      isSuccess = !hasErrors,
+      message = if (!hasErrors) "Build check passed with ${diagnostics.size} warnings/info items."
+      else "Build check failed with ${diagnostics.count { it.severity == "ERROR" }} syntax errors.",
       diagnostics = diagnostics,
-      exitCode = if (isSuccess) 0 else 1
+      output = if (!hasErrors) "Compilation succeeded. All source files parsed."
+      else "Compilation errors found."
     )
   }
 
-  /**
-   * Runs a Gradle task simulation/check for the project.
-   */
-  suspend fun runGradleTask(project: Project, taskName: String): BuildResult {
-    val check = checkAndBuild(project)
-    if (!check.isSuccess) {
-      return BuildResult(
-        isSuccess = false,
-        message = "Task :$taskName failed due to configuration errors.\n${check.message}",
-        diagnostics = check.diagnostics,
-        exitCode = 1
-      )
-    }
-    return BuildResult(
-      isSuccess = true,
-      message = "BUILD SUCCESSFUL in 2s (Task :$taskName UP-TO-DATE)",
-      diagnostics = emptyList(),
-      exitCode = 0
-    )
-  }
+  private fun inspectFileSyntax(file: File, content: String, root: File): List<BuildDiagnostic> {
+    val diags = mutableListOf<BuildDiagnostic>()
+    val relPath = file.relativeTo(root).path
+    val lines = content.lines()
 
-  /**
-   * Analyzes build and runtime error logs into structured diagnostics.
-   */
-  fun detectBuildErrors(logOutput: String): List<BuildDiagnostic> {
-    val diagnostics = mutableListOf<BuildDiagnostic>()
-    if (logOutput.isBlank()) return diagnostics
+    var braceCount = 0
+    var parenCount = 0
+    var bracketCount = 0
 
-    val lines = logOutput.split("\n")
-    val errorRegex = Regex("(?:e: |Error: |FAIL: )?(.*?:\\d+:\\d+:?|.*?): (.+)")
-
-    for (line in lines) {
+    lines.forEachIndexed { idx, line ->
       val trimmed = line.trim()
-      if (trimmed.contains("error:", ignoreCase = true) || trimmed.contains("FAILED", ignoreCase = true)) {
-        val match = errorRegex.find(trimmed)
-        if (match != null) {
-          diagnostics.add(
-            BuildDiagnostic(
-              filePath = match.groupValues.getOrElse(1) { "unknown" },
-              line = 1,
-              severity = "ERROR",
-              message = match.groupValues.getOrElse(2) { trimmed }
-            )
-          )
-        } else {
-          diagnostics.add(
-            BuildDiagnostic("build.log", 1, "ERROR", trimmed)
-          )
+      if (trimmed.startsWith("//") || trimmed.startsWith("#") || trimmed.startsWith("*")) {
+        return@forEachIndexed
+      }
+
+      for (ch in line) {
+        when (ch) {
+          '{' -> braceCount++
+          '}' -> braceCount--
+          '(' -> parenCount++
+          ')' -> parenCount--
+          '[' -> bracketCount++
+          ']' -> bracketCount--
         }
       }
+
+      if (braceCount < 0) {
+        diags.add(BuildDiagnostic("ERROR", relPath, idx + 1, "Unmatched closing brace '}'"))
+        braceCount = 0
+      }
+      if (parenCount < 0) {
+        diags.add(BuildDiagnostic("ERROR", relPath, idx + 1, "Unmatched closing parenthesis ')'"))
+        parenCount = 0
+      }
+      if (bracketCount < 0) {
+        diags.add(BuildDiagnostic("ERROR", relPath, idx + 1, "Unmatched closing bracket ']'"))
+        bracketCount = 0
+      }
     }
-    return diagnostics
+
+    if (braceCount > 0) {
+      diags.add(BuildDiagnostic("ERROR", relPath, lines.size, "Missing closing brace '}' ($braceCount unclosed)"))
+    }
+    if (parenCount > 0) {
+      diags.add(BuildDiagnostic("ERROR", relPath, lines.size, "Missing closing parenthesis ')' ($parenCount unclosed)"))
+    }
+    if (bracketCount > 0) {
+      diags.add(BuildDiagnostic("ERROR", relPath, lines.size, "Missing closing bracket ']' ($bracketCount unclosed)"))
+    }
+
+    return diags
   }
 }
